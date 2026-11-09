@@ -2,7 +2,7 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "rainfalling",
   "main": "worker/index.mjs",
-  "compatibility_date": "2026-11-10",
+  "compatibility_date": "2026-11-09",
   "workers_dev": true,
   "preview_urls": false,
   "keep_vars": true,
