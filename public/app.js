@@ -87,8 +87,24 @@ let roleFilter='全部',showAll=false;function renderMembers(){const keyword=$('
 ['全部','會長','副會長','理事','成員'].forEach(r=>{const b=document.createElement('button');b.textContent=r;b.onclick=()=>{roleFilter=r;showAll=false;renderMembers()};$('#role-filters').append(b)});$('#member-search').oninput=()=>{showAll=false;renderMembers()};$('#member-more').onclick=()=>{showAll=!showAll;renderMembers()};renderMembers();
 let guildFilter='全部公會',friendOffset=0;const mobile=matchMedia('(max-width:700px)');function friendList(){return friends.filter(p=>guildFilter==='全部公會'||p.guild===guildFilter)}function renderGuildFilters(){$('#guild-filters').innerHTML='';['全部公會',...guilds].forEach(g=>{const b=document.createElement('button');b.textContent=g;b.classList.toggle('active',g===guildFilter);b.setAttribute('aria-pressed',g===guildFilter);b.onclick=()=>{guildFilter=g;friendOffset=0;renderGuildFilters();renderFriends()};$('#guild-filters').append(b)})}function renderFriends(){const list=friendList(),n=mobile.matches?2:5,count=Math.min(n,list.length);friendOffset=list.length?((friendOffset%list.length)+list.length)%list.length:0;const visible=Array.from({length:count},(_,i)=>list[(friendOffset+i)%list.length]);$('#friend-grid').innerHTML=visible.map(card).join('')||'<p class="empty">這個公會的好友席位，等你來填。</p>';$('#friend-position').textContent=list.length?`${friendOffset+1} / ${list.length} 位好友`:'尚無好友';$('#friend-prev').disabled=$('#friend-next').disabled=list.length<=count;$('#friend-grid').classList.remove('stage-enter');void $('#friend-grid').offsetWidth;$('#friend-grid').classList.add('stage-enter')}$('#friend-prev').onclick=()=>{friendOffset--;renderFriends()};$('#friend-next').onclick=()=>{friendOffset++;renderFriends()};mobile.addEventListener('change',renderFriends);renderGuildFilters();renderFriends();
 function swipe(el,prev,next){let x,y;el.addEventListener('touchstart',e=>{x=e.touches[0].clientX;y=e.touches[0].clientY},{passive:true});el.addEventListener('touchend',e=>{const dx=e.changedTouches[0].clientX-x,dy=e.changedTouches[0].clientY-y;if(Math.abs(dx)>45&&Math.abs(dx)>Math.abs(dy)*1.3){dx>0?prev():next()}},{passive:true})}swipe($('#friend-viewport'),()=>$('#friend-prev').click(),()=>$('#friend-next').click());
+const profileDialog=$('#profile-dialog');
 let activePerson=null,mediaIndex=0;function getPerson(id){return [...members,...friends].find(p=>p.id===id)}function renderProfile(){const p=activePerson,n=views(p).length;mediaIndex=(mediaIndex+n)%n;$('#profile-image').innerHTML=mediaHTML(p,mediaIndex,true);$('#profile-role').textContent=p.role;$('#profile-name').textContent=p.name;$('#profile-nickname').textContent=p.nickname||'—';$('#profile-guild').textContent=p.guild;$('#profile-notes').textContent=p.notes||'—';$('#media-prev').hidden=$('#media-next').hidden=n<=1;$('#media-dots').innerHTML=Array.from({length:n},(_,i)=>`<button class="${i===mediaIndex?'active':''}" data-media="${i}" aria-label="查看第 ${i+1} 張圖片" aria-pressed="${i===mediaIndex}"></button>`).join('');$('#profile-media-note').textContent=n>1?`${mediaIndex+1} / ${n} · ${viewLabel(views(p)[mediaIndex])} · 左右切換，首尾循環`:viewLabel(views(p)[mediaIndex]);}
-document.addEventListener('click',e=>{const c=e.target.closest('[data-person]');if(c){activePerson=getPerson(c.dataset.person);mediaIndex=Number(c.dataset.view||0);c.classList.add('selected');setTimeout(()=>c.classList.remove('selected'),1500);renderProfile();$('#profile-dialog').showModal()}const d=e.target.closest('[data-media]');if(d){mediaIndex=Number(d.dataset.media);renderProfile()}});$('#media-prev').onclick=()=>{mediaIndex--;renderProfile()};$('#media-next').onclick=()=>{mediaIndex++;renderProfile()};swipe($('.profile-media'),()=>$('#media-prev').click(),()=>$('#media-next').click());$('#profile-dialog').addEventListener('keydown',e=>{if(e.key==='ArrowLeft')$('#media-prev').click();if(e.key==='ArrowRight')$('#media-next').click()});$$('.dialog-close').forEach(b=>b.onclick=()=>b.closest('dialog').close());$$('dialog').forEach(dialog=>{
+document.addEventListener('click',event=>{
+ const card=event.target.closest('[data-person]');
+ if(card&&!profileDialog.open){
+  activePerson=getPerson(card.dataset.person);
+  mediaIndex=Number(card.dataset.view||0);
+  stopCardEffects(card);
+  $$('.person-card[data-card-hover]').forEach(stopCardEffects);
+  renderProfile();
+  profileDialog.showModal();
+ }
+ const dot=event.target.closest('[data-media]');
+ if(dot){
+  mediaIndex=Number(dot.dataset.media);
+  renderProfile();
+ }
+});$('#media-prev').onclick=()=>{mediaIndex--;renderProfile()};$('#media-next').onclick=()=>{mediaIndex++;renderProfile()};swipe($('.profile-media'),()=>$('#media-prev').click(),()=>$('#media-next').click());$('#profile-dialog').addEventListener('keydown',e=>{if(e.key==='ArrowLeft')$('#media-prev').click();if(e.key==='ArrowRight')$('#media-next').click()});$$('.dialog-close').forEach(b=>b.onclick=()=>b.closest('dialog').close());$$('dialog').forEach(dialog=>{
  if(dialog.id==='admin-dialog'){
   // Keep the modal open until the owner uses its close button.
   dialog.addEventListener('cancel',event=>event.preventDefault());
@@ -114,10 +130,17 @@ function syncCardPlayback(card,playing){
  if(video&&playing)video.play().catch(()=>{});
  else if(video){video.pause();video.currentTime=0}
 }
+function stopCardEffects(card){
+ card.removeAttribute('data-card-hover');
+ for(const property of ['--tilt-x','--tilt-y','--glow-x','--glow-y'])card.style.removeProperty(property);
+ syncCardPlayback(card,false);
+ card.querySelectorAll('.card-slide:not(:last-child)').forEach(slide=>slide.remove());
+ card.getAnimations({subtree:true}).forEach(animation=>animation.cancel());
+}
 for(const [event,playing] of [['pointerover',true],['pointerout',false]]){
  document.addEventListener(event,e=>{
   const card=e.target.closest('.person-card');
-  if(!card||e.pointerType==='touch'||card.contains(e.relatedTarget))return;
+  if(!card||profileDialog.open||e.pointerType==='touch'||card.contains(e.relatedTarget))return;
   card.toggleAttribute('data-card-hover',playing);
   syncCardPlayback(card,playing);
  });
@@ -544,4 +567,4 @@ document.addEventListener('click',e=>{
  syncCardPlayback(card,card.hasAttribute('data-card-hover'));
 },true);
 document.addEventListener('keydown',e=>{const c=e.target.closest('.person-card');if(c&&e.target===c&&(e.key==='Enter'||e.key===' ')){e.preventDefault();c.click()}});
-document.addEventListener('pointermove',e=>{if(reduced.matches||e.pointerType==='touch')return;const c=e.target.closest('.person-card');if(!c)return;const r=c.getBoundingClientRect(),x=(e.clientX-r.left)/r.width,y=(e.clientY-r.top)/r.height;c.style.setProperty('--tilt-x',((.5-y)*9)+'deg');c.style.setProperty('--tilt-y',((x-.5)*12)+'deg');c.style.setProperty('--glow-x',x*100+'%');c.style.setProperty('--glow-y',y*100+'%')});document.addEventListener('pointerout',e=>{const c=e.target.closest('.person-card');if(c&&!c.contains(e.relatedTarget)){c.style.setProperty('--tilt-x','0deg');c.style.setProperty('--tilt-y','0deg')}});
+document.addEventListener('pointermove',e=>{if(profileDialog.open||reduced.matches||e.pointerType==='touch')return;const c=e.target.closest('.person-card');if(!c)return;const r=c.getBoundingClientRect(),x=(e.clientX-r.left)/r.width,y=(e.clientY-r.top)/r.height;c.style.setProperty('--tilt-x',((.5-y)*9)+'deg');c.style.setProperty('--tilt-y',((x-.5)*12)+'deg');c.style.setProperty('--glow-x',x*100+'%');c.style.setProperty('--glow-y',y*100+'%')});document.addEventListener('pointerout',e=>{const c=e.target.closest('.person-card');if(c&&!c.contains(e.relatedTarget)){c.style.setProperty('--tilt-x','0deg');c.style.setProperty('--tilt-y','0deg')}});
