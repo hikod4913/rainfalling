@@ -1,7 +1,7 @@
 'use strict';
 (() => {
 const root=document.documentElement,sections=magicSections,magic=$('#magic');
-let entered=false,active=-1,current=-1,transitionToken=0,pending=-1,rafQueued=false,fxPreviewIndex=0;
+let entered=false,activePage=0,visit=0,transitionToken=0,running=false,ready=false,settleTimer,fxPreviewIndex=0;
 const cover=$('#home'),header=$('header'),pages=[cover,...sections];
 root.classList.add('paged');
 new ResizeObserver(()=>root.style.setProperty('--page-header',header.offsetHeight+'px')).observe(header);
@@ -11,7 +11,7 @@ sections.forEach((section,i)=>{
  const shell=document.createElement('div');shell.className='stage-content';
  [...section.childNodes].forEach(n=>shell.append(n));section.append(shell);
  section.classList.add('memory-stage');section.dataset.stage=i;section.dataset.entrance=magicInfo[i][2];
- if(fxEnabled&&!reduced.matches){section.classList.add('awaiting-memory');shell.inert=true;shell.setAttribute('aria-hidden','true')}
+ setHidden(i,true);
 });
 function stopDecode(heading){const state=decodeFrames.get(heading);if(state){cancelAnimationFrame(state.frame);heading.innerHTML=state.original;heading.classList.remove('decoding');decodeFrames.delete(heading)}}
 document.addEventListener('page-copy-edit',event=>stopDecode(event.target));
@@ -21,10 +21,10 @@ function reveal(i,animate=true){const section=sections[i],shell=section.querySel
  const old=contentAnimations.get(section);if(old)clearTimeout(old);void shell.offsetWidth;section.classList.add('content-revealing');decodeHeading(section.querySelector('h2'));contentAnimations.set(section,setTimeout(()=>section.classList.remove('content-revealing'),650));}
 function resetTransitions(){
  transitionToken++;
- current=-1;
- pending=-1;
+ running=false;
+ ready=false;
  magic.classList.remove('play');
- sections.forEach((_,i)=>reveal(i,false));
+ updateScroll();
 }
 
 function setNav(i){
@@ -36,12 +36,9 @@ function setNav(i){
  });
 }
 
-async function startNextTransition(){
- if(current!==-1||pending===-1)return;
- const i=pending;
- pending=-1;
- current=i;
- const token=++transitionToken;
+async function playSigil(i){
+ running=true;
+ const token=++transitionToken,startedVisit=visit;
  const info=magicInfo[i];
  sections[i].querySelectorAll('h2').forEach(stopDecode);
  magic.dataset.effect=info[2];
@@ -60,48 +57,54 @@ async function startNextTransition(){
  await Promise.allSettled(magic.getAnimations({subtree:true}).map(animation=>animation.finished));
  if(token!==transitionToken)return;
  magic.classList.remove('play');
- current=-1;
- reveal(i,true);
- startNextTransition();
+ running=false;
+ ready=startedVisit===visit;
+ if(settleTimer===undefined)updateScroll();
 }
 
-window.runMemoryTransition=i=>{
- if(!entered||i<0||i>=sections.length)return;
- if(document.querySelector('dialog[open]'))return;
- sections[i].dataset.flip=i>=active?'forward':'back';
- active=i;
- setNav(i);
- if(!fxEnabled||reduced.matches){
-  reveal(i,false);
-  return;
- }
- // Keep the current sigil running. The latest destination gets its own full pass.
- pending=i===current?-1:i;
- setHidden(i,true);
- startNextTransition();
-};
 function updateScroll(){
- rafQueued=false;
- const height=cover.getBoundingClientRect().height;
- const page=Math.max(0,Math.min(pages.length-1,Math.round(scrollY/height)));
- $('.scroll-progress').style.transform=`scaleX(${page/(pages.length-1)})`;
- header.classList.toggle('scrolled',page>0);
- if(!entered)return;
- sections.at(-1).classList.toggle('farewell-in-view',page===pages.length-1);
- const next=page-1;
- if(next===-1){
-  setNav(-1);
-  pending=-1;
-  active=-1;
- }else if(next!==active){
-  window.runMemoryTransition(next);
+ if(!entered||document.querySelector('dialog[open]'))return;
+ // The visible sliver of a neighboring page is still outside its snap position.
+ const page=pages.findIndex(section=>Math.abs(section.getBoundingClientRect().top)<=2);
+ if(page===-1)return;
+ if(page!==activePage){
+  if(activePage>0){
+   const previous=sections[activePage-1];
+   setHidden(activePage-1,true);
+   previous.querySelectorAll('h2').forEach(stopDecode);
+   previous.classList.remove('content-revealing');
+   clearTimeout(contentAnimations.get(previous));
+  }
+  if(page>0)sections[page-1].dataset.flip=page>activePage?'forward':'back';
+  activePage=page;
+  visit++;
+  ready=false;
+  setNav(page-1);
+  $('.scroll-progress').style.transform=`scaleX(${page/(pages.length-1)})`;
+  header.classList.toggle('scrolled',page>0);
+  sections.at(-1).classList.toggle('farewell-in-view',page===pages.length-1);
  }
+ const stage=sections[page-1];
+ if(!stage?.classList.contains('awaiting-memory'))return;
+ if(!fxEnabled||reduced.matches)reveal(page-1,false);
+ else if(ready)reveal(page-1,true);
+ else if(!running)playSigil(page-1);
 }
-addEventListener('scroll',()=>{if(!rafQueued){rafQueued=true;requestAnimationFrame(updateScroll)}},{passive:true});addEventListener('resize',updateScroll);
+
+function scheduleScrollCheck(){
+ clearTimeout(settleTimer);
+ settleTimer=setTimeout(()=>{
+  settleTimer=undefined;
+  updateScroll();
+ },90);
+}
+addEventListener('scroll',scheduleScrollCheck,{passive:true});
+addEventListener('resize',scheduleScrollCheck);
+$$('dialog').forEach(dialog=>dialog.addEventListener('close',scheduleScrollCheck));
 $('#fx-toggle').onclick=()=>{fxEnabled=!fxEnabled;$('#fx-toggle').textContent='魔法特效：'+(fxEnabled?'開':'關');$('#fx-toggle').setAttribute('aria-pressed',fxEnabled);if(!fxEnabled)resetTransitions();toast(fxEnabled?'中央魔法與解碼效果已開啟':'特效已關閉，內容直接顯示')};
 reduced.addEventListener('change',()=>{if(reduced.matches)resetTransitions()});
 $('#preview-magic').onclick=()=>{const i=fxPreviewIndex;fxPreviewIndex=(i+1)%5;$('#preview-magic').textContent='✧ 下一段：'+['淡入淡出','左右合併','順時針描繪','多環展開','光柱升起'][fxPreviewIndex];navigateTo(i)};
-function navigateTo(i){$('#main-nav').classList.remove('expanded');$('#nav-toggle').setAttribute('aria-expanded','false');const top=sections[i].getBoundingClientRect().top+scrollY;window.scrollTo({top,behavior:'instant'});history.replaceState(null,'','#'+sections[i].id);window.runMemoryTransition(i)}
+function navigateTo(i){$('#main-nav').classList.remove('expanded');$('#nav-toggle').setAttribute('aria-expanded','false');const top=sections[i].getBoundingClientRect().top+scrollY;window.scrollTo({top,behavior:'instant'});history.replaceState(null,'','#'+sections[i].id);scheduleScrollCheck()}
 $$('#main-nav a').forEach(a=>a.onclick=e=>{const i=sections.findIndex(s=>'#'+s.id===a.hash);if(i>=0){e.preventDefault();navigateTo(i)}});
 $$('.hero-actions a,.hero-foot a').forEach(a=>a.onclick=e=>{const i=sections.findIndex(s=>'#'+s.id===a.hash);if(i>=0){e.preventDefault();navigateTo(i)}});
 $('#nav-toggle').onclick=()=>{const open=$('#nav-toggle').getAttribute('aria-expanded')!=='true';$('#nav-toggle').setAttribute('aria-expanded',open);$('#main-nav').classList.toggle('expanded',open)};
@@ -221,7 +224,7 @@ enter.onclick=async()=>{
  $('#music-bar').inert=false;
  $('footer').inert=false;
  $('#home-title').focus({preventScroll:true});
- updateScroll();
+ scheduleScrollCheck();
  const url=new URL(location.href);
  if(url.searchParams.get('admin')==='1'){
   url.searchParams.delete('admin');
