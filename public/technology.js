@@ -223,10 +223,10 @@ enter.onclick=async()=>{
  $('#home-title').focus({preventScroll:true});
  updateScroll();
  const url=new URL(location.href);
- if(url.pathname==='/admin'||url.searchParams.get('admin')==='1'){
+ if(url.searchParams.get('admin')==='1'){
   url.searchParams.delete('admin');
   history.replaceState(history.state,'',url);
-  $('#admin-open').click();
+  document.dispatchEvent(new Event('rain-admin-return'));
  }
 };
 $('main').inert=true;$('header').inert=true;$('#music-bar').inert=true;$('footer').inert=true;boot();updateScroll();

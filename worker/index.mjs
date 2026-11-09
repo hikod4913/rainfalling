@@ -250,10 +250,9 @@ export default {
   try{
    if(pathname.startsWith('/api/admin/'))return await admin(request,env,pathname.slice(11));
    if(request.method!=='GET'&&request.method!=='HEAD')return fail('不支援的操作',405);
-   const accessAdmin=env.ACCESS_TEAM_DOMAIN&&['/admin','/admin/'].includes(pathname);
-   if(accessAdmin){
+   if(env.ACCESS_TEAM_DOMAIN&&['/admin','/admin/'].includes(pathname)){
     if(!await isOwner(request,env))return fail('請先登入會長帳號',401);
-    if(pathname==='/admin/')return Response.redirect(new URL('/admin',request.url),302);
+    return new Response(null,{status:303,headers:{Location:'/?admin=1','Cache-Control':'no-store'}});
    }
    if(pathname==='/api/content'){
     const {published}=await readState(env);
@@ -270,7 +269,7 @@ export default {
     }
     return await serveMedia(request,env,id);
    }
-   const assetPath=pathname==='/'||accessAdmin?'/index.html':pathname;
+   const assetPath=pathname==='/'?'/index.html':pathname;
    if(env.ASSETS){
     if(assetPath==='/index.html'&&env.ACCESS_TEAM_DOMAIN){
      const page=await env.ASSETS.fetch(new Request(new URL('/',request.url),{method:request.method}));
@@ -289,7 +288,7 @@ export default {
     body=new TextDecoder().decode(body).replace('<html ','<html data-access-login="1" ');
    }
    return new Response(body,{
-    headers:{'Content-Type':type,'Cache-Control':accessAdmin?'no-store':'no-cache','X-Content-Type-Options':'nosniff'}
+    headers:{'Content-Type':type,'Cache-Control':'no-cache','X-Content-Type-Options':'nosniff'}
    });
   }catch(error){
    console.error(error);

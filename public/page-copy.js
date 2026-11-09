@@ -88,10 +88,11 @@
   async function request(path,method='GET',body){
     const binary=body instanceof Blob;
     const response=await fetch('/api/'+path,{
-      method,cache:'no-store',
+      method,cache:'no-store',redirect:'manual',
       headers:method==='POST'?{'X-Rain-Admin':'1','Content-Type':binary?'application/octet-stream':'application/json'}:{},
       body:method==='POST'?(binary?body:JSON.stringify(body)):undefined
     });
+    if(response.type==='opaqueredirect')throw Object.assign(new Error('請重新登入會長帳號。'),{status:401});
     const data=await response.json();
     if(!response.ok)throw Object.assign(new Error(data.error),{status:response.status});
     return data;
@@ -218,12 +219,14 @@
 
   const publicReady=request('content').then(applySnapshot).catch(()=>{});
 
-  $('#admin-open').onclick=async()=>{
-    if(cloudflareAccess&&location.pathname!=='/admin'){location.assign('/admin');return}
+  const logout=$('#admin-logout');
+  if(cloudflareAccess)logout.href='/cdn-cgi/access/logout';
+  async function openAdmin(allowLoginRedirect){
     if(uploadBusy){toast('檔案仍在處理中，請稍候');return}
     gate.hidden=false;
     content.hidden=true;
     $('#admin-sign-in').hidden=true;
+    logout.hidden=true;
     $('#admin-access-status').textContent='正在確認會長權限…';
     if(!dialog.open)dialog.showModal();
     try{
@@ -233,13 +236,17 @@
       renderImages();
       gate.hidden=true;
       content.hidden=false;
+      logout.hidden=false;
     }catch(error){
+      if(cloudflareAccess&&allowLoginRedirect&&error.status===401){location.assign('/admin');return}
       $('#admin-access-status').textContent=error.message||'目前無法確認會長權限。';
       $('#admin-sign-in').hidden=![401,403].includes(error.status);
       $('#admin-sign-in').textContent=error.status===403?'切換到會長帳號':'使用會長帳號登入';
       $('#admin-sign-in').href=cloudflareAccess?'/admin':error.status===403?'/signout-with-chatgpt?return_to=%2F%3Fadmin%3D1':'/signin-with-chatgpt?return_to=%2F%3Fadmin%3D1';
     }
-  };
+  }
+  $('#admin-open').onclick=()=>openAdmin(true);
+  document.addEventListener('rain-admin-return',()=>openAdmin(false));
 
   sections.forEach(({name},index)=>select.add(new Option(name,index)));
   select.addEventListener('change',renderFields);

@@ -231,11 +231,12 @@ function renderUploadPreview(){
   return `<div class="upload-item" data-asset-index="${i}">
     <button class="asset-drag" type="button" draggable="true" title="拖曳調整順序" aria-label="拖曳第 ${i+1} 張">⠿</button>
     ${a.type==='mp4'?`<video src="${a.url}" muted playsinline preload="metadata"></video>`:`<img src="${a.poster||a.url}" alt="素材預覽">`}
-    <small>${i+1} · ${i===0?'封面 · ':''}${a.type.toUpperCase()}<br>${esc(a.name)}</small>
-    ${asset.demo?'':`<select data-asset-view="${i}" aria-label="第 ${i+1} 張素材的分類">${options.map(([value,label])=>`<option value="${value}" ${value===view?'selected':''}>${label}</option>`).join('')}</select>`}
+    <small>${i+1} · ${a.type.toUpperCase()}<br>${esc(a.name)}</small>
+    ${i===0?'<span class="asset-cover-badge">目前封面</span>':''}
+    ${asset.demo?'':`<label class="asset-view-field">圖片用途<select data-asset-view="${i}" aria-label="第 ${i+1} 張素材的分類">${options.map(([value,label])=>`<option value="${value}" ${value===view?'selected':''}>${label}</option>`).join('')}</select></label>`}
     <div class="asset-actions">
-      <button type="button" data-asset-move="-1" aria-label="第 ${i+1} 張向前" ${i===0?'disabled':''}>←</button>
-      <button type="button" data-asset-move="1" aria-label="第 ${i+1} 張向後" ${i===stagedAssets.length-1?'disabled':''}>→</button>
+      <button type="button" data-asset-move="-1" aria-label="第 ${i+1} 張向前" ${i===0?'disabled':''}>← 往前</button>
+      <button type="button" data-asset-move="1" aria-label="第 ${i+1} 張向後" ${i===stagedAssets.length-1?'disabled':''}>往後 →</button>
       <button type="button" data-cover ${i===0?'disabled':''}>設為封面</button>
       <button type="button" data-remove>移除</button>
     </div>
