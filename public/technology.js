@@ -4,8 +4,12 @@ const root=document.documentElement,sections=magicSections,magic=$('#magic');
 let entered=false,activePage=0,visit=0,transitionToken=0,running=false,ready=false,settleTimer,fxPreviewIndex=0;
 const cover=$('#home'),header=$('header'),pages=[cover,...sections];
 root.classList.add('paged');
-new ResizeObserver(()=>root.style.setProperty('--page-header',header.offsetHeight+'px')).observe(header);
+const sizeHeader=()=>root.style.setProperty('--page-header',header.offsetHeight+'px');
+sizeHeader();
+if(typeof ResizeObserver==='function')new ResizeObserver(sizeHeader).observe(header);
+else addEventListener('resize',sizeHeader);
 const contentAnimations=new WeakMap(),decodeFrames=new WeakMap();
+let finishSigil;
 // Preserve layout while keeping unvisited chapter content and controls truly hidden.
 sections.forEach((section,i)=>{
  const shell=document.createElement('div');shell.className='stage-content';
@@ -21,6 +25,7 @@ function reveal(i,animate=true){const section=sections[i],shell=section.querySel
  const old=contentAnimations.get(section);if(old)clearTimeout(old);void shell.offsetWidth;section.classList.add('content-revealing');decodeHeading(section.querySelector('h2'));contentAnimations.set(section,setTimeout(()=>section.classList.remove('content-revealing'),650));}
 function resetTransitions(){
  transitionToken++;
+ finishSigil?.();
  running=false;
  ready=false;
  magic.classList.remove('play');
@@ -33,6 +38,26 @@ function setNav(i){
   a.classList.toggle('active',selected);
   if(selected)a.setAttribute('aria-current','location');
   else a.removeAttribute('aria-current');
+ });
+}
+
+function waitForSigil(){
+ // The veil and moving parts use the same CSS duration. Some engines do not
+ // expose every descendant animation, so wait for the veil itself.
+ const value=getComputedStyle(magic).animationDuration;
+ const parsed=parseFloat(value)*(value.endsWith('ms')?1:1000);
+ const duration=Number.isFinite(parsed)&&parsed>0?parsed:1200;
+ return new Promise(resolve=>{
+  const timer=setTimeout(finish,duration+80);
+  function finish(){
+   clearTimeout(timer);
+   magic.removeEventListener('animationend',onEnd);
+   finishSigil=undefined;
+   resolve();
+  }
+  function onEnd(event){if(event.target===magic)finish()}
+  finishSigil=finish;
+  magic.addEventListener('animationend',onEnd);
  });
 }
 
@@ -53,8 +78,7 @@ async function playSigil(i){
  }).join('');
  void magic.offsetWidth;
  magic.classList.add('play');
- // Wait for the veil and every moving part of the sigil to finish.
- await Promise.allSettled(magic.getAnimations({subtree:true}).map(animation=>animation.finished));
+ await waitForSigil();
  if(token!==transitionToken)return;
  magic.classList.remove('play');
  running=false;
@@ -82,7 +106,7 @@ function updateScroll(){
   setNav(page-1);
   $('.scroll-progress').style.transform=`scaleX(${page/(pages.length-1)})`;
   header.classList.toggle('scrolled',page>0);
-  sections.at(-1).classList.toggle('farewell-in-view',page===pages.length-1);
+  sections[sections.length-1].classList.toggle('farewell-in-view',page===pages.length-1);
  }
  const stage=sections[page-1];
  if(!stage?.classList.contains('awaiting-memory'))return;
@@ -102,9 +126,9 @@ addEventListener('scroll',scheduleScrollCheck,{passive:true});
 addEventListener('resize',scheduleScrollCheck);
 $$('dialog').forEach(dialog=>dialog.addEventListener('close',scheduleScrollCheck));
 $('#fx-toggle').onclick=()=>{fxEnabled=!fxEnabled;$('#fx-toggle').textContent='魔法特效：'+(fxEnabled?'開':'關');$('#fx-toggle').setAttribute('aria-pressed',fxEnabled);if(!fxEnabled)resetTransitions();toast(fxEnabled?'中央魔法與解碼效果已開啟':'特效已關閉，內容直接顯示')};
-reduced.addEventListener('change',()=>{if(reduced.matches)resetTransitions()});
+onMediaChange(reduced,()=>{if(reduced.matches)resetTransitions()});
 $('#preview-magic').onclick=()=>{const i=fxPreviewIndex;fxPreviewIndex=(i+1)%5;$('#preview-magic').textContent='✧ 下一段：'+['淡入淡出','左右合併','順時針描繪','多環展開','光柱升起'][fxPreviewIndex];navigateTo(i)};
-function navigateTo(i){$('#main-nav').classList.remove('expanded');$('#nav-toggle').setAttribute('aria-expanded','false');const top=sections[i].getBoundingClientRect().top+scrollY;window.scrollTo({top,behavior:'instant'});history.replaceState(null,'','#'+sections[i].id);scheduleScrollCheck()}
+function navigateTo(i){$('#main-nav').classList.remove('expanded');$('#nav-toggle').setAttribute('aria-expanded','false');const top=sections[i].getBoundingClientRect().top+scrollY;window.scrollTo({top,behavior:'auto'});history.replaceState(null,'','#'+sections[i].id);scheduleScrollCheck()}
 $$('#main-nav a').forEach(a=>a.onclick=e=>{const i=sections.findIndex(s=>'#'+s.id===a.hash);if(i>=0){e.preventDefault();navigateTo(i)}});
 $$('.hero-actions a,.hero-foot a').forEach(a=>a.onclick=e=>{const i=sections.findIndex(s=>'#'+s.id===a.hash);if(i>=0){e.preventDefault();navigateTo(i)}});
 $('#nav-toggle').onclick=()=>{const open=$('#nav-toggle').getAttribute('aria-expanded')!=='true';$('#nav-toggle').setAttribute('aria-expanded',open);$('#main-nav').classList.toggle('expanded',open)};

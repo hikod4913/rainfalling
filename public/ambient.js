@@ -59,6 +59,6 @@
     }
   }
 
-  desktopPointer.addEventListener('change', sync);
+  onMediaChange(desktopPointer,sync);
   sync();
 })();

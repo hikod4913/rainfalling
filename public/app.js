@@ -1,5 +1,9 @@
 'use strict';
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)], reduced=matchMedia('(prefers-reduced-motion: reduce)');
+function onMediaChange(query,listener){
+ if(typeof query.addEventListener==='function')query.addEventListener('change',listener);
+ else query.addListener(listener);
+}
 const chapters=[{name:'初次相遇',title:'兩個公會，一個歸處。',glyph:'合',art:'meeting',caption:'TWO GUILDS. ONE HOME.',text:'合服後，原會長抱著試試運氣的心情，私訊詢問是否有意願合併。剛好，緣分讓我們遇見了彼此，兩個公會也因此合而為一。'},{name:'並肩挑戰',title:'還弱小，也一起向前。',glyph:'戰',art:'challenge',caption:'WE LEARNED. WE GREW. TOGETHER.',text:'面對各式各樣的副本，還弱小的我們持續嘗試，一點一點長大。\n那些一起挑戰、一起摸索的日子，都留在了這段旅程裡。'},{name:'平凡日常',title:'只有我們懂的日常。',glyph:'伴',art:'everyday',caption:'ORDINARY NIGHTS. EXTRAORDINARY US.',text:'沒什麼大事發生，上線就是聊聊天。\n看手術刀女王損汁男、說著要刷ㄇㄉJ卡、信仰布丁神教——這些只有我們懂的日常，就是最熟悉的公會風景。'},{name:'未完待續',title:'想念時，隨時回來。',glyph:'續',art:'afterward',caption:'THE SERVER CLOSES. OUR STORY STAYS.',text:'雨落即將落幕，我們把名字與回憶留在這裡。以後想念的時候，還能回來說一聲：好久不見。'}];
 const names=['神思月','微雨','聽風','星河','暮色','月白','流螢','拾光','南風','晴空','夜航','初雪','墨染','星眠','雲深'];
 let members=Array.from({length:18},(_,i)=>({id:'m'+i,kind:'member',role:i===0?'會長':i<3?'副會長':i<7?'理事':'成員',name:names[i]||'雨落夥伴 '+String(i-6).padStart(3,'0'),nickname:i===0?'—':'待留下的綽號',notes:i===0?'把名字與回憶留在這裡。\n以後想念的時候，還能回來說一聲：好久不見。':'示範資料：這裡可以留下這位夥伴的故事、口頭禪，以及想對大家說的一句話。',guild:'雨落傾城',seed:i,assets:[]}));
@@ -85,7 +89,7 @@ function applyRecords(records=defaultRecords,draft=false){
 }
 let roleFilter='全部',showAll=false;function renderMembers(){const keyword=$('#member-search').value.trim().toLowerCase(),list=members.filter(p=>(roleFilter==='全部'||p.role===roleFilter)&&p.name.toLowerCase().includes(keyword));$('#member-grid').innerHTML=list.slice(0,showAll?list.length:15).map(card).join('')||'<p class="empty">找不到這位夥伴，換個名字試試。</p>';$('#member-more').hidden=list.length<=15;$('#member-more').innerHTML=showAll?'收起名冊 <span>−</span>':'展開所有雨落夥伴 <span>＋</span>';$('#member-count').textContent=`${Math.min(list.length,showAll?list.length:15)} / ${list.length} 位夥伴`;$$('#role-filters button').forEach(b=>{b.classList.toggle('active',b.textContent===roleFilter);b.setAttribute('aria-pressed',b.textContent===roleFilter)})}
 ['全部','會長','副會長','理事','成員'].forEach(r=>{const b=document.createElement('button');b.textContent=r;b.onclick=()=>{roleFilter=r;showAll=false;renderMembers()};$('#role-filters').append(b)});$('#member-search').oninput=()=>{showAll=false;renderMembers()};$('#member-more').onclick=()=>{showAll=!showAll;renderMembers()};renderMembers();
-let guildFilter='全部公會',friendOffset=0;const mobile=matchMedia('(max-width:700px)');function friendList(){return friends.filter(p=>guildFilter==='全部公會'||p.guild===guildFilter)}function renderGuildFilters(){$('#guild-filters').innerHTML='';['全部公會',...guilds].forEach(g=>{const b=document.createElement('button');b.textContent=g;b.classList.toggle('active',g===guildFilter);b.setAttribute('aria-pressed',g===guildFilter);b.onclick=()=>{guildFilter=g;friendOffset=0;renderGuildFilters();renderFriends()};$('#guild-filters').append(b)})}function renderFriends(){const list=friendList(),n=mobile.matches?2:5,count=Math.min(n,list.length);friendOffset=list.length?((friendOffset%list.length)+list.length)%list.length:0;const visible=Array.from({length:count},(_,i)=>list[(friendOffset+i)%list.length]);$('#friend-grid').innerHTML=visible.map(card).join('')||'<p class="empty">這個公會的好友席位，等你來填。</p>';$('#friend-position').textContent=list.length?`${friendOffset+1} / ${list.length} 位好友`:'尚無好友';$('#friend-prev').disabled=$('#friend-next').disabled=list.length<=count;$('#friend-grid').classList.remove('stage-enter');void $('#friend-grid').offsetWidth;$('#friend-grid').classList.add('stage-enter')}$('#friend-prev').onclick=()=>{friendOffset--;renderFriends()};$('#friend-next').onclick=()=>{friendOffset++;renderFriends()};mobile.addEventListener('change',renderFriends);renderGuildFilters();renderFriends();
+let guildFilter='全部公會',friendOffset=0;const mobile=matchMedia('(max-width:700px)');function friendList(){return friends.filter(p=>guildFilter==='全部公會'||p.guild===guildFilter)}function renderGuildFilters(){$('#guild-filters').innerHTML='';['全部公會',...guilds].forEach(g=>{const b=document.createElement('button');b.textContent=g;b.classList.toggle('active',g===guildFilter);b.setAttribute('aria-pressed',g===guildFilter);b.onclick=()=>{guildFilter=g;friendOffset=0;renderGuildFilters();renderFriends()};$('#guild-filters').append(b)})}function renderFriends(){const list=friendList(),n=mobile.matches?2:5,count=Math.min(n,list.length);friendOffset=list.length?((friendOffset%list.length)+list.length)%list.length:0;const visible=Array.from({length:count},(_,i)=>list[(friendOffset+i)%list.length]);$('#friend-grid').innerHTML=visible.map(card).join('')||'<p class="empty">這個公會的好友席位，等你來填。</p>';$('#friend-position').textContent=list.length?`${friendOffset+1} / ${list.length} 位好友`:'尚無好友';$('#friend-prev').disabled=$('#friend-next').disabled=list.length<=count;$('#friend-grid').classList.remove('stage-enter');void $('#friend-grid').offsetWidth;$('#friend-grid').classList.add('stage-enter')}$('#friend-prev').onclick=()=>{friendOffset--;renderFriends()};$('#friend-next').onclick=()=>{friendOffset++;renderFriends()};onMediaChange(mobile,renderFriends);renderGuildFilters();renderFriends();
 function swipe(el,prev,next){let x,y;el.addEventListener('touchstart',e=>{x=e.touches[0].clientX;y=e.touches[0].clientY},{passive:true});el.addEventListener('touchend',e=>{const dx=e.changedTouches[0].clientX-x,dy=e.changedTouches[0].clientY-y;if(Math.abs(dx)>45&&Math.abs(dx)>Math.abs(dy)*1.3){dx>0?prev():next()}},{passive:true})}swipe($('#friend-viewport'),()=>$('#friend-prev').click(),()=>$('#friend-next').click());
 const profileDialog=$('#profile-dialog');
 let activePerson=null,mediaIndex=0;function getPerson(id){return [...members,...friends].find(p=>p.id===id)}function renderProfile(){const p=activePerson,n=views(p).length;mediaIndex=(mediaIndex+n)%n;$('#profile-image').innerHTML=mediaHTML(p,mediaIndex,true);$('#profile-role').textContent=p.role;$('#profile-name').textContent=p.name;$('#profile-nickname').textContent=p.nickname||'—';$('#profile-guild').textContent=p.guild;$('#profile-notes').textContent=p.notes||'—';$('#media-prev').hidden=$('#media-next').hidden=n<=1;$('#media-dots').innerHTML=Array.from({length:n},(_,i)=>`<button class="${i===mediaIndex?'active':''}" data-media="${i}" aria-label="查看第 ${i+1} 張圖片" aria-pressed="${i===mediaIndex}"></button>`).join('');$('#profile-media-note').textContent=n>1?`${mediaIndex+1} / ${n} · ${viewLabel(views(p)[mediaIndex])} · 左右切換，首尾循環`:viewLabel(views(p)[mediaIndex]);}
@@ -135,7 +139,7 @@ function stopCardEffects(card){
  for(const property of ['--tilt-x','--tilt-y','--glow-x','--glow-y'])card.style.removeProperty(property);
  syncCardPlayback(card,false);
  card.querySelectorAll('.card-slide:not(:last-child)').forEach(slide=>slide.remove());
- card.getAnimations({subtree:true}).forEach(animation=>animation.cancel());
+ card.getAnimations?.({subtree:true}).forEach(animation=>animation.cancel());
 }
 for(const [event,playing] of [['pointerover',true],['pointerout',false]]){
  document.addEventListener(event,e=>{
@@ -195,7 +199,7 @@ function showChapter(index, animate=true){
     button.setAttribute('aria-selected',selected);
   });
 
-  if(!animate||reduced.matches){
+  if(!animate||reduced.matches||typeof chapterStage.animate!=='function'){
     chapterTransition?.cancel();
     chapterTransition=null;
     renderChapter(next);
@@ -555,7 +559,7 @@ document.addEventListener('click',e=>{
  card.dataset.view=i;
  card.querySelector('.portrait-badge').textContent=viewLabel(gallery[i]);
  card.querySelector('.card-view-count').textContent=`${i+1} / ${gallery.length}`;
- if(!reduced.matches){
+ if(!reduced.matches&&typeof slide.animate==='function'){
   if(host.querySelector('.triptych-view'))previous.remove();
   else{
    previous.setAttribute('aria-hidden','true');
