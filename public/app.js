@@ -7,7 +7,7 @@ let guilds=['星海旅團','月光茶會','遠方來信'];
 let friends=Array.from({length:9},(_,i)=>({id:'f'+i,kind:'friend',role:'公會好友',name:['晨星','晚風','星砂','小月','茶茶','眠兔','旅人','微光','歸舟'][i],nickname:'待留下的綽號',notes:'好友資料示範：記下我們相遇的契機、一起參加的活動，還有想留給彼此的一句話。',guild:guilds[Math.floor(i/3)],seed:i+23,assets:[]}));
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function avatar(p,angle=0){const h=(220+p.seed*29)%360,hair=['#b5c4e0','#bbb0d4','#d2c4ac','#858eac','#a8bac4'][p.seed%5],cloth=`hsl(${h} 32% 25%)`,edge=`hsl(${h} 42% 65%)`,back=angle===2,side=angle===1;return `<svg viewBox="0 0 240 300" xmlns="http://www.w3.org/2000/svg" aria-label="${esc(p.name)}角色示意${['正面','側面','背面'][angle]}"><defs><radialGradient id="a${p.id}${angle}"><stop stop-color="${edge}" stop-opacity=".22"/><stop offset="1" stop-color="${cloth}" stop-opacity="0"/></radialGradient></defs><circle cx="120" cy="140" r="110" fill="url(#a${p.id}${angle})"/><circle cx="120" cy="133" r="79" fill="none" stroke="${edge}" opacity=".17"/><path d="M45 280L66 170Q75 148 101 143H139Q165 150 174 170L195 280Z" fill="${cloth}" stroke="${edge}" stroke-opacity=".4"/><path d="M77 165L61 270 96 260 115 166M163 165L179 270 144 260 125 166" fill="#101a30"/><path d="M92 145L120 174 149 145 139 191 120 204 101 190Z" fill="${edge}" opacity=".65"/><path d="M110 125H130V154L120 164 109 153Z" fill="#d9bca9"/><path d="M82 80Q78 38 120 36Q166 36 159 89L155 133 139 147H99L80 130Z" fill="${hair}"/>${back?`<path d="M84 76Q120 40 156 76L162 151Q120 166 78 151Z" fill="${hair}"/><path d="M95 59L88 147M110 50L108 154M132 52L136 153M146 66L153 144" stroke="#293449" stroke-opacity=".2" fill="none"/>`:`<path d="M91 75Q120 60 151 76L148 115Q145 138 120 145Q96 137 92 116Z" fill="#e4c9b7"/><path d="M83 83Q79 40 119 37Q162 36 160 83L143 73 145 98 127 73 116 91 109 68 91 100Z" fill="${hair}"/><path d="M96 107L109 105M130 105L143 107" stroke="#263451" stroke-width="3" stroke-linecap="round"/><path d="M99 109L107 108M133 108L141 109" stroke="${edge}" stroke-width="3"/><path d="M115 128Q120 131 125 128" stroke="#ad7b7b" fill="none"/>`}${side?'<path d="M68 34H115V158H68Z" fill="'+cloth+'" opacity=".7"/>':''}<path d="M82 200L64 270M158 200L177 270M120 205V286" stroke="${edge}" stroke-opacity=".45"/><path d="M106 181L120 174 134 181 120 198Z" fill="#d9b990"/><path d="M116 183L120 178 124 183 120 191Z" fill="${edge}"/><path d="M80 235L92 241 80 247 68 241Z" fill="${edge}" opacity=".7"/><path d="M156 237L164 245 156 253 148 245Z" stroke="#d9b990" fill="none"/><path d="M45 280Q120 297 195 280" stroke="${edge}" stroke-opacity=".3" fill="none"/></svg>`}
-const viewLabels={gallery:'相簿圖片',front:'正面',side:'側面',back:'背面',group:'合照',sheet:'橫排三視圖'};
+const viewLabels={gallery:'相簿圖片',front:'正面',side:'側面',back:'背面',group:'合照',sheet:'橫排三視圖（確認有三個角色）'};
 const angles=['front','side','back'];
 let triptychId=0;
 function assetView(p,asset){
@@ -30,12 +30,13 @@ function mediaHTML(p,index=0,large=false){
  if(a.demo!==undefined)return avatar(p,a.demo);
  if(a.type==='mp4')return `<video src="${a.url}" ${large?'autoplay loop':''} muted playsinline preload="${large?'metadata':'none'}" ${a.poster?'poster="'+a.poster+'"':''} aria-label="${esc(p.name)}角色影片"></video>`;
  if(a.crop!==undefined){
-  const panel=a.width/3,height=a.height,clip='triptych-clip-'+ ++triptychId;
+  const edges=a.panelCuts?[0,...a.panelCuts,a.width]:[0,a.width/3,a.width*2/3,a.width];
+  const left=edges[a.crop],panel=edges[a.crop+1]-left,height=a.height,clip='triptych-clip-'+ ++triptychId;
   // Inset one source pixel on each edge to prevent filtering across panel boundaries.
   const inset=Math.min(1,panel/4),width=panel-2*inset;
   return `<svg class="triptych-view" viewBox="0 0 ${width} ${height}" role="img" aria-label="${esc(p.name+' '+viewLabel(a))}">
    <defs><clipPath id="${clip}"><rect width="${width}" height="${height}"/></clipPath></defs>
-   <image href="${esc(a.url)}" x="${-a.crop*panel-inset}" width="${a.width}" height="${height}" clip-path="url(#${clip})"/>
+   <image href="${esc(a.url)}" x="${-left-inset}" width="${a.width}" height="${height}" clip-path="url(#${clip})"/>
   </svg>`;
  }
  const src=large?a.url:a.type==='gif'?a.poster:a.url;
@@ -254,6 +255,7 @@ function renderUploadPreview(){
     <button class="asset-drag" type="button" draggable="true" title="拖曳調整順序" aria-label="拖曳第 ${i+1} 張">⠿</button>
     ${a.type==='mp4'?`<video src="${a.url}" muted playsinline preload="metadata"></video>`:`<img src="${a.poster||a.url}" alt="素材預覽">`}
     <small>${i+1} · ${a.type.toUpperCase()}<br>${esc(a.name)}</small>
+    ${a.panelCuts&&view!=='sheet'?'<small>偵測到三個分離輪廓。請確認同一角色的正、側、背面後，再選「橫排三視圖」。</small>':''}
     ${i===0?'<span class="asset-cover-badge">目前封面</span>':''}
     ${asset.demo?'':`<label class="asset-view-field">圖片用途<select data-asset-view="${i}" aria-label="第 ${i+1} 張素材的分類">${options.map(([value,label])=>`<option value="${value}" ${value===view?'selected':''}>${label}</option>`).join('')}</select></label>`}
     <div class="asset-actions">
@@ -315,14 +317,44 @@ uploadPreview.ondrop=e=>{
 };
 uploadPreview.ondragend=clearAssetDrag;
 async function detectFile(f){const bytes=new Uint8Array(await f.slice(0,32).arrayBuffer()),ascii=(a,b)=>String.fromCharCode(...bytes.slice(a,b));if(ascii(0,6)==='GIF87a'||ascii(0,6)==='GIF89a')return 'gif';if(bytes[0]===137&&ascii(1,4)==='PNG'&&bytes[4]===13&&bytes[5]===10&&bytes[6]===26&&bytes[7]===10)return 'png';if(bytes[0]===255&&bytes[1]===216&&bytes[2]===255)return 'jpg';if(ascii(0,4)==='RIFF'&&ascii(8,12)==='WEBP')return 'webp';if(ascii(4,8)==='ftyp'&&['isom','iso2','mp41','mp42','avc1','M4V '].includes(ascii(8,12)))return 'mp4';if(ascii(0,3)==='ID3'||(bytes[0]===255&&(bytes[1]&224)===224))return 'mp3';throw Error('無法辨識或不支援的檔案格式')}
-function inspectMedia(f,type){return new Promise((resolve,reject)=>{const url=URL.createObjectURL(f),el=document.createElement(type==='mp4'?'video':'img'),timeout=setTimeout(()=>fail('檔案讀取逾時或已損壞'),12000);function fail(msg){clearTimeout(timeout);URL.revokeObjectURL(url);reject(Error(msg))}el.onerror=()=>fail('檔案無法解碼，請確認內容有效');if(type==='mp4'){el.muted=true;el.preload='metadata';el.onloadedmetadata=()=>{if(!el.videoWidth||!el.videoHeight)return fail('無效影片');clearTimeout(timeout);resolve({url,type,width:el.videoWidth,height:el.videoHeight,poster:null,name:f.name,size:f.size})}}else el.onload=()=>{clearTimeout(timeout);let poster=null;if(type==='gif'){try{const c=document.createElement('canvas'),scale=Math.min(1,600/el.naturalWidth);c.width=el.naturalWidth*scale;c.height=el.naturalHeight*scale;c.getContext('2d').drawImage(el,0,0,c.width,c.height);poster=c.toDataURL('image/png')}catch{}}resolve({url,type,width:el.naturalWidth,height:el.naturalHeight,poster,name:f.name,size:f.size})};el.src=url})}
+function suggestSheetCuts(image){
+ const canvas=document.createElement('canvas');
+ canvas.width=Math.min(image.naturalWidth,384);
+ canvas.height=Math.min(image.naturalHeight,256);
+ const context=canvas.getContext('2d');
+ if(!context)return;
+ context.drawImage(image,0,0,canvas.width,canvas.height);
+ const {data}=context.getImageData(0,0,canvas.width,canvas.height);
+ const runs=[];
+ let start=-1,peak=0;
+ for(let x=0;x<=canvas.width;x++){
+  let occupied=0;
+  if(x<canvas.width)for(let y=0;y<canvas.height;y++){
+   if(data[(y*canvas.width+x)*4+3]>=200)occupied++;
+  }
+  if(occupied>=canvas.height*.06){
+   if(start<0)start=x;
+   peak=Math.max(peak,occupied);
+  }else if(start>=0){
+   if(x-start>=canvas.width*.1&&peak>=canvas.height*.35)runs.push({start,end:x});
+   start=-1;
+   peak=0;
+  }
+ }
+ if(runs.length!==3)return;
+ const gaps=[0,1].map(i=>[runs[i].end,runs[i+1].start]);
+ if(gaps.some(([a,b])=>b-a<canvas.width*.02))return;
+ return gaps.map(([a,b])=>Math.round((a+b)*image.naturalWidth/(2*canvas.width)));
+}
+
+function inspectMedia(f,type){return new Promise((resolve,reject)=>{const url=URL.createObjectURL(f),el=document.createElement(type==='mp4'?'video':'img'),timeout=setTimeout(()=>fail('檔案讀取逾時或已損壞'),12000);function fail(msg){clearTimeout(timeout);URL.revokeObjectURL(url);reject(Error(msg))}el.onerror=()=>fail('檔案無法解碼，請確認內容有效');if(type==='mp4'){el.muted=true;el.preload='metadata';el.onloadedmetadata=()=>{if(!el.videoWidth||!el.videoHeight)return fail('無效影片');clearTimeout(timeout);resolve({url,type,width:el.videoWidth,height:el.videoHeight,poster:null,name:f.name,size:f.size})}}else el.onload=()=>{clearTimeout(timeout);let poster=null;if(type==='gif'){try{const c=document.createElement('canvas'),scale=Math.min(1,600/el.naturalWidth);c.width=el.naturalWidth*scale;c.height=el.naturalHeight*scale;c.getContext('2d').drawImage(el,0,0,c.width,c.height);poster=c.toDataURL('image/png')}catch{}}let panelCuts;if(type==='png'||type==='webp'){try{panelCuts=suggestSheetCuts(el)}catch{}}resolve({url,type,width:el.naturalWidth,height:el.naturalHeight,poster,panelCuts,name:f.name,size:f.size})};el.src=url})}
 const uploadQueue=[];function renderQueue(){$('#upload-queue').innerHTML=uploadQueue.map((q,i)=>`<div class="queue-row"><span>${esc(q.file.name)}</span><b>${esc(q.status)}</b><progress max="100" value="${q.progress}"></progress>${q.error?`<small>${esc(q.error)}</small><button type="button" data-retry="${i}">重試</button>`:''}</div>`).join('')}
 async function processItem(q){q.status='辨識與解碼中';q.error='';q.progress=25;renderQueue();try{if(q.file.size>25*1024*1024)throw Error('單檔上限為 25 MB');const type=await detectFile(q.file);if(type==='mp3')throw Error('請到背景音樂分頁加入 MP3');q.progress=55;renderQueue();const inspected=await inspectMedia(q.file,type);
  try{
   const {id}=await uploadRecordMedia(q.file);
   const poster=inspected.poster?await uploadRecordMedia(await fetch(inspected.poster).then(response=>response.blob())):null;
   q.asset={id,type,view:'gallery',name:inspected.name.slice(0,255),size:inspected.size,width:inspected.width,height:inspected.height,
-   ...(poster?{posterId:poster.id}:{})};
+   ...(poster?{posterId:poster.id}:{}),...(inspected.panelCuts?{panelCuts:inspected.panelCuts}:{})};
  }finally{URL.revokeObjectURL(inspected.url)}q.status='完成 · '+type.toUpperCase();q.progress=100}catch(err){q.status='失敗';q.error=err.message;q.progress=0}renderQueue()}
 async function runQueue(){uploadBusy=true;$('#person-form button[type="submit"]').disabled=true;$('#admin-kind').disabled=$('#admin-person').disabled=true;let cursor=0;async function worker(){while(cursor<uploadQueue.length){const q=uploadQueue[cursor++];if(q.status==='排隊中')await processItem(q)}}await Promise.all([worker(),worker()]);stagedAssets.push(...uploadQueue.filter(q=>q.asset&&!q.applied).map(q=>{q.applied=true;return q.asset}));renderUploadPreview();$('#upload-feedback').textContent='批次處理完成：'+uploadQueue.filter(q=>q.asset).length+' 個成功；儲存成員草稿後才會保留。';uploadBusy=false;$('#person-form button[type="submit"]').disabled=false;$('#admin-kind').disabled=$('#admin-person').disabled=false}
 $('#person-upload').onchange=async e=>{if(uploadBusy)return;if(!$('#edit-name').value.trim()||!$('#edit-guild').value){e.target.value='';toast('請先選擇公會並輸入成員名稱');return}const files=[...e.target.files];if(files.length>10||stagedAssets.length+files.length>30){e.target.value='';toast('每批最多 10 個，每位最多保留 30 個檔案');return}uploadQueue.length=0;files.forEach(file=>uploadQueue.push({file,status:'排隊中',progress:0}));renderQueue();await runQueue()};$('#upload-queue').onclick=async e=>{const b=e.target.closest('[data-retry]');if(!b||uploadBusy)return;const q=uploadQueue[Number(b.dataset.retry)];q.status='排隊中';await runQueue()};

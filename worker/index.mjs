@@ -79,10 +79,13 @@ function validateRecords(records){
    ids.add(person.id);
    for(const asset of person.assets){
     if(isRecord(asset)&&person.id==='m0'&&asset.demo===true&&onlyKeys(asset,['demo']))continue;
-    if(!isRecord(asset)||!onlyKeys(asset,['id','posterId','type','view','name','size','width','height'])||!validId(asset.id)||
+    if(!isRecord(asset)||!onlyKeys(asset,['id','posterId','type','view','name','size','width','height','panelCuts'])||!validId(asset.id)||
      (asset.posterId!==undefined&&!validId(asset.posterId))||!personMedia.includes(asset.type)||
      (asset.view!==undefined&&!personViews.includes(asset.view))||
      (asset.view==='sheet'&&['gif','mp4'].includes(asset.type))||!shortText(asset.name,255,true)||![asset.size,asset.width,asset.height].every(n=>Number.isSafeInteger(n)&&n>0))return false;
+    const cuts=asset.panelCuts;
+    if(cuts!==undefined&&(!Array.isArray(cuts)||cuts.length!==2||!cuts.every(Number.isSafeInteger)||
+     cuts[0]<=0||cuts[0]>=cuts[1]||cuts[1]>=asset.width||['gif','mp4'].includes(asset.type)))return false;
    }
   }
  }
