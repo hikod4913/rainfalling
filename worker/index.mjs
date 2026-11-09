@@ -37,7 +37,7 @@ async function isOwner(request,env){
    !Number.isFinite(claims.exp)||claims.exp<=now||(claims.nbf!==undefined&&
    (!Number.isFinite(claims.nbf)||claims.nbf>now))||
    typeof claims.email!=='string'||claims.email.toLowerCase()!==email)return false;
-  const response=await fetch(issuer+'/cdn-cgi/access/certs',{redirect:'error',cf:{cacheEverything:true,cacheTtl:300}});
+  const response=await fetch(issuer+'/cdn-cgi/access/certs',{redirect:'manual',cf:{cacheEverything:true,cacheTtl:300}});
   if(!response.ok)return false;
   const {keys}=await response.json();
   const key=keys.find(key=>key.kid===kid&&key.kty==='RSA');
