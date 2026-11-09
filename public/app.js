@@ -9,6 +9,7 @@ function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;',
 function avatar(p,angle=0){const h=(220+p.seed*29)%360,hair=['#b5c4e0','#bbb0d4','#d2c4ac','#858eac','#a8bac4'][p.seed%5],cloth=`hsl(${h} 32% 25%)`,edge=`hsl(${h} 42% 65%)`,back=angle===2,side=angle===1;return `<svg viewBox="0 0 240 300" xmlns="http://www.w3.org/2000/svg" aria-label="${esc(p.name)}角色示意${['正面','側面','背面'][angle]}"><defs><radialGradient id="a${p.id}${angle}"><stop stop-color="${edge}" stop-opacity=".22"/><stop offset="1" stop-color="${cloth}" stop-opacity="0"/></radialGradient></defs><circle cx="120" cy="140" r="110" fill="url(#a${p.id}${angle})"/><circle cx="120" cy="133" r="79" fill="none" stroke="${edge}" opacity=".17"/><path d="M45 280L66 170Q75 148 101 143H139Q165 150 174 170L195 280Z" fill="${cloth}" stroke="${edge}" stroke-opacity=".4"/><path d="M77 165L61 270 96 260 115 166M163 165L179 270 144 260 125 166" fill="#101a30"/><path d="M92 145L120 174 149 145 139 191 120 204 101 190Z" fill="${edge}" opacity=".65"/><path d="M110 125H130V154L120 164 109 153Z" fill="#d9bca9"/><path d="M82 80Q78 38 120 36Q166 36 159 89L155 133 139 147H99L80 130Z" fill="${hair}"/>${back?`<path d="M84 76Q120 40 156 76L162 151Q120 166 78 151Z" fill="${hair}"/><path d="M95 59L88 147M110 50L108 154M132 52L136 153M146 66L153 144" stroke="#293449" stroke-opacity=".2" fill="none"/>`:`<path d="M91 75Q120 60 151 76L148 115Q145 138 120 145Q96 137 92 116Z" fill="#e4c9b7"/><path d="M83 83Q79 40 119 37Q162 36 160 83L143 73 145 98 127 73 116 91 109 68 91 100Z" fill="${hair}"/><path d="M96 107L109 105M130 105L143 107" stroke="#263451" stroke-width="3" stroke-linecap="round"/><path d="M99 109L107 108M133 108L141 109" stroke="${edge}" stroke-width="3"/><path d="M115 128Q120 131 125 128" stroke="#ad7b7b" fill="none"/>`}${side?'<path d="M68 34H115V158H68Z" fill="'+cloth+'" opacity=".7"/>':''}<path d="M82 200L64 270M158 200L177 270M120 205V286" stroke="${edge}" stroke-opacity=".45"/><path d="M106 181L120 174 134 181 120 198Z" fill="#d9b990"/><path d="M116 183L120 178 124 183 120 191Z" fill="${edge}"/><path d="M80 235L92 241 80 247 68 241Z" fill="${edge}" opacity=".7"/><path d="M156 237L164 245 156 253 148 245Z" stroke="#d9b990" fill="none"/><path d="M45 280Q120 297 195 280" stroke="${edge}" stroke-opacity=".3" fill="none"/></svg>`}
 const viewLabels={gallery:'相簿圖片',front:'正面',side:'側面',back:'背面',group:'合照',sheet:'橫排三視圖'};
 const angles=['front','side','back'];
+let triptychId=0;
 function assetView(p,asset){
  if(asset.view)return asset.view;
  return p.mode==='triptych'&&!['gif','mp4'].includes(asset.type)?'sheet':'gallery';
@@ -28,9 +29,17 @@ function mediaHTML(p,index=0,large=false){
  const a=views(p)[index];
  if(a.demo!==undefined)return avatar(p,a.demo);
  if(a.type==='mp4')return `<video src="${a.url}" ${large?'autoplay loop':''} muted playsinline preload="${large?'metadata':'none'}" ${a.poster?'poster="'+a.poster+'"':''} aria-label="${esc(p.name)}角色影片"></video>`;
+ if(a.crop!==undefined){
+  const panel=a.width/3,height=a.height,clip='triptych-clip-'+ ++triptychId;
+  // Inset one source pixel on each edge to prevent filtering across panel boundaries.
+  const inset=Math.min(1,panel/4),width=panel-2*inset;
+  return `<svg class="triptych-view" viewBox="0 0 ${width} ${height}" role="img" aria-label="${esc(p.name+' '+viewLabel(a))}">
+   <defs><clipPath id="${clip}"><rect width="${width}" height="${height}"/></clipPath></defs>
+   <image href="${esc(a.url)}" x="${-a.crop*panel-inset}" width="${a.width}" height="${height}" clip-path="url(#${clip})"/>
+  </svg>`;
+ }
  const src=large?a.url:a.type==='gif'?a.poster:a.url;
- const image=`${!large&&!src?'<span class="gif-placeholder" aria-hidden="true">GIF</span>':''}<img class="${a.crop!==undefined?'triptych-crop':''}" style="${a.crop!==undefined?'--crop:'+a.crop:''}" ${src?'src="'+src+'"':''} alt="${esc(p.name+' '+viewLabel(a))}" ${large?'':'loading="lazy"'}>`;
- return a.crop===undefined?image:`<span class="triptych-panel" style="--panel-ratio:${a.width/(3*a.height)}">${image}</span>`;
+ return `${!large&&!src?'<span class="gif-placeholder" aria-hidden="true">GIF</span>':''}<img ${src?'src="'+src+'"':''} alt="${esc(p.name+' '+viewLabel(a))}" ${large?'':'loading="lazy"'}>`;
 }
 function card(p,i){const gallery=views(p),label=viewLabel(gallery[0]);return `<article class="person-card" style="--card-delay:${Math.min(Math.abs(i%5-2)*80,160)}ms" data-person="${p.id}" tabindex="0" role="button" aria-label="${esc(p.role+' '+p.name)}"><div class="portrait" style="--h:${220+p.seed*29%100}"><div class="card-media"><div class="card-slide">${mediaHTML(p)}</div></div><span class="image-frame" aria-hidden="true"><svg viewBox="0 0 100 100" preserveAspectRatio="none"><rect class="frame-track" x="2" y="2" width="96" height="96" pathLength="100"/><rect class="frame-runner" x="2" y="2" width="96" height="96" pathLength="100"/><path class="frame-corner" d="M2 10V2H10"/><path class="frame-corner" d="M90 2H98V10"/><path class="frame-corner" d="M98 90V98H90"/><path class="frame-corner" d="M10 98H2V90"/></svg></span><span class="portrait-badge">${label}</span><span class="portrait-index">${String(i+1).padStart(3,'0')}</span>${gallery.length>1?`<button class="card-nav card-prev" data-card-dir="-1" aria-label="${esc(p.name)}上一張">‹</button><button class="card-nav card-next" data-card-dir="1" aria-label="${esc(p.name)}下一張">›</button><span class="card-view-count" aria-live="polite">1 / ${gallery.length}</span>`:''}</div><div class="person-label"><div><small>${esc(p.role)}</small><b>${esc(p.name)}</b>${p.kind==='friend'?'<small class="guild-name">'+esc(p.guild)+'</small>':''}</div><span>↗</span></div></article>`}
 // A bundled, three-panel SVG demonstrates the crop interaction without external assets.
@@ -453,8 +462,11 @@ document.addEventListener('click',e=>{
  card.querySelector('.portrait-badge').textContent=viewLabel(gallery[i]);
  card.querySelector('.card-view-count').textContent=`${i+1} / ${gallery.length}`;
  if(!reduced.matches){
-  previous.setAttribute('aria-hidden','true');
-  previous.animate([{opacity:1},{opacity:0}],{duration:230,easing:'ease-out'}).onfinish=()=>previous.remove();
+  if(host.querySelector('.triptych-view'))previous.remove();
+  else{
+   previous.setAttribute('aria-hidden','true');
+   previous.animate([{opacity:1},{opacity:0}],{duration:230,easing:'ease-out'}).onfinish=()=>previous.remove();
+  }
   slide.animate([{opacity:0},{opacity:1}],{duration:230,easing:'ease-out'});
   card.querySelector('.frame-runner').animate([{strokeDashoffset:100},{strokeDashoffset:0}],{duration:460});
  }else previous.remove();
