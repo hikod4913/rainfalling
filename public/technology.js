@@ -212,6 +212,7 @@ enter.onclick=async()=>{
  if(entered||opening||enter.disabled)return;
  opening=true;
  enter.disabled=true;
+ startBackgroundMusic();
  await playMemoryPortal();
  entered=true;
  root.classList.remove('js-booting');

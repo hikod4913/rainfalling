@@ -72,11 +72,9 @@ function applyRecords(records=defaultRecords,draft=false){
  renderGuildFilters();
  renderFriends();
  const currentId=tracks[trackIndex]?.id;
- const currentUrl=audio.getAttribute('src');
  tracks=records.tracks.map(track=>({...track,url:mediaUrl(track.id,draft)}));
  trackIndex=Math.max(0,tracks.findIndex(track=>track.id===currentId));
  if(tracks.length){
-  if(currentUrl!==tracks[trackIndex].url)audio.pause();
   setTrack(trackIndex);
  }else{
   audio.pause();
@@ -423,8 +421,49 @@ $('#guild-list').onclick=event=>{
   records.friends.filter(person=>person.guild===guild.name).forEach(person=>{person.guild=name});
  },'公會名稱已更新至草稿。');
 };
-let tracks=[],trackIndex=0;const audio=$('#bgm');audio.volume=.5;function setTrack(i,autoplay=false){if(!tracks.length)return;trackIndex=(i+tracks.length)%tracks.length;if(audio.getAttribute('src')!==tracks[trackIndex].url)audio.src=tracks[trackIndex].url;$('#music-name').textContent=tracks[trackIndex].name;$('#music-sub').textContent=`${trackIndex+1} / ${tracks.length} · ${tracks.length===2?'雙曲循環':'單曲循環'} `;if(autoplay)audio.play().catch(()=>toast('請按播放按鈕開始音樂'));}
-$('#music-toggle').onclick=()=>{if(!tracks.length){toast('目前沒有可播放的背景音樂');return}if(!audio.src)setTrack(0);if(audio.paused)audio.play().catch(()=>toast('無法播放這個檔案'));else audio.pause()};$('#music-next').onclick=()=>{if(!tracks.length)return toast('尚未加入歌曲');setTrack(trackIndex+1,!audio.paused)};$('#music-volume').oninput=e=>audio.volume=Number(e.target.value);audio.onended=()=>setTrack(trackIndex+1,true);audio.onplay=()=>{$('#music-bar').classList.add('playing');$('#music-toggle').textContent='Ⅱ';$('#music-toggle').setAttribute('aria-label','暫停背景音樂')};audio.onpause=()=>{$('#music-bar').classList.remove('playing');$('#music-toggle').textContent='▶';$('#music-toggle').setAttribute('aria-label','播放背景音樂')};audio.onerror=()=>{if(tracks.length)toast('音訊無法播放，請重新上傳有效的 MP3')};
+let tracks=[],trackIndex=0,musicRequested=true;
+const audio=$('#bgm');
+audio.volume=.5;
+
+function startBackgroundMusic(manual=false){
+ if(!musicRequested||!tracks.length||(!audio.paused&&!audio.ended))return;
+ audio.play().catch(error=>{
+  if(error.name==='AbortError')return;
+  if(manual)toast(error.name==='NotAllowedError'?'請再按一次播放開始音樂':'無法播放這個檔案');
+ });
+}
+
+function setTrack(i){
+ if(!tracks.length)return;
+ trackIndex=(i+tracks.length)%tracks.length;
+ const track=tracks[trackIndex];
+ if(audio.getAttribute('src')!==track.url){
+  audio.pause();
+  audio.src=track.url;
+ }
+ $('#music-name').textContent=track.name;
+ $('#music-sub').textContent=`${trackIndex+1} / ${tracks.length} · ${tracks.length===2?'雙曲循環':'單曲循環'}`;
+ if(audio.ended)audio.currentTime=0;
+ startBackgroundMusic();
+}
+
+$('#music-toggle').onclick=()=>{
+ if(!tracks.length){toast('目前沒有可播放的背景音樂');return}
+ musicRequested=audio.paused;
+ if(musicRequested)startBackgroundMusic(true);
+ else audio.pause();
+};
+$('#music-next').onclick=()=>{if(!tracks.length)return toast('尚未加入歌曲');setTrack(trackIndex+1)};
+$('#music-volume').oninput=e=>audio.volume=Number(e.target.value);
+audio.onended=()=>{if(musicRequested)setTrack(trackIndex+1)};
+function showMusicState(playing){
+ $('#music-bar').classList.toggle('playing',playing);
+ $('#music-toggle').textContent=playing?'Ⅱ':'▶';
+ $('#music-toggle').setAttribute('aria-label',playing?'暫停背景音樂':'播放背景音樂');
+}
+audio.onplay=()=>showMusicState(true);
+audio.onpause=()=>showMusicState(false);
+audio.onerror=()=>{if(tracks.length)toast('音訊無法播放，請重新上傳有效的 MP3')};
 function renderMusicList(){
  const list=adminRecords.tracks;
  $('#music-list').innerHTML=list.length?list.map((track,index)=>`<div class="music-row">
