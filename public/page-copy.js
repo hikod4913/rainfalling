@@ -97,7 +97,7 @@
     return data;
   }
 
-  function applySnapshot(snapshot){
+  function applySnapshot(snapshot,draft=false){
     for(const section of sections){
       section.fields.forEach(([,key],index)=>{
         const original=defaults[section.id][index];
@@ -114,10 +114,10 @@
         }else applyText(node,saved);
       });
     }
-    setPageImage(hero,imageSlots[0].source,snapshot.images.home);
-    chapters.forEach((chapter,index)=>{chapter.cover=snapshot.images['chapter-'+index]});
+    setPageImage(hero,imageSlots[0].source,snapshot.images.home,draft);
+    chapters.forEach((chapter,index)=>{chapter.cover=snapshot.images['chapter-'+index];chapter.draft=draft});
     renderChapter(chapterIndex);
-    applyRecords(snapshot.records);
+    applyRecords(snapshot.records,draft);
   }
 
   function renderFields(){
@@ -151,7 +151,7 @@
     const saved=state?.draft.images[image.id];
     const crop=saved??defaultCrop(image.id);
     cropInputs.forEach((input,index)=>{input.value=crop[cropKeys[index]]});
-    const src=saved?'/media/'+saved.id:image.source;
+    const src=saved?mediaUrl(saved.id,true):image.source;
     for(const [id,ratio] of [['#crop-desktop',image.id==='home'?'2.4':'1'],['#crop-mobile',image.id==='home'?'1.25':'1.5']]){
       const img=$(id);
       img.src=src;
@@ -219,6 +219,7 @@
   const publicReady=request('content').then(applySnapshot).catch(()=>{});
 
   $('#admin-open').onclick=async()=>{
+    if(cloudflareAccess&&location.pathname!=='/admin'){location.assign('/admin');return}
     if(uploadBusy){toast('檔案仍在處理中，請稍候');return}
     gate.hidden=false;
     content.hidden=true;
@@ -236,7 +237,7 @@
       $('#admin-access-status').textContent=error.message||'目前無法確認會長權限。';
       $('#admin-sign-in').hidden=![401,403].includes(error.status);
       $('#admin-sign-in').textContent=error.status===403?'切換到會長帳號':'使用會長帳號登入';
-      $('#admin-sign-in').href=error.status===403?'/signout-with-chatgpt?return_to=%2F%3Fadmin%3D1':'/signin-with-chatgpt?return_to=%2F%3Fadmin%3D1';
+      $('#admin-sign-in').href=cloudflareAccess?'/admin':error.status===403?'/signout-with-chatgpt?return_to=%2F%3Fadmin%3D1':'/signin-with-chatgpt?return_to=%2F%3Fadmin%3D1';
     }
   };
 
@@ -310,7 +311,7 @@
 
   $('#cms-preview').onclick=()=>{
     if(busy||uploadBusy)return;
-    applySnapshot(state.draft);
+    applySnapshot(state.draft,true);
     dialog.close();
     toast('正在查看草稿。其他訪客仍會看到公開版本。');
   };
@@ -321,7 +322,7 @@
   });
   $('#cms-publish').onclick=()=>perform(async()=>{
     await request('admin/publish','POST',{revision:state.revision});
-    applySnapshot(state.draft);
+    applySnapshot(state.draft,true);
     await refreshState();
     status.textContent='已發布。訪客現在可以看到更新。';
   });

@@ -1,0 +1,29 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "rainfalling",
+  "main": "worker/index.mjs",
+  "compatibility_date": "2026-11-10",
+  "workers_dev": true,
+  "preview_urls": false,
+  "keep_vars": true,
+  "assets": {
+    "directory": "public",
+    "binding": "ASSETS",
+    "run_worker_first": ["/", "/index.html", "/admin", "/admin/*", "/api/*", "/media/*"]
+  },
+  "vars": {
+    "ACCESS_TEAM_DOMAIN": "super-tree-37ef.cloudflareaccess.com"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "rainfalling-db",
+      "database_id": "946b9709-84b2-4f79-bcb5-381f01c56b63",
+      "migrations_dir": "drizzle"
+    }
+  ],
+  "r2_buckets": [
+    {"binding": "BUCKET", "bucket_name": "rainfalling-media"}
+  ],
+  "observability": {"enabled": true, "traces": {"enabled": true}}
+}

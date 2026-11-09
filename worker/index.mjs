@@ -11,10 +11,43 @@ const json=(data,status=200)=>Response.json(data,{
 });
 const fail=(message,status)=>json({error:message},status);
 const isRecord=value=>value!==null&&typeof value==='object'&&!Array.isArray(value);
-const isOwner=(request,env)=>Boolean(
- env.GUILD_ADMIN_EMAIL&&request.headers.get('oai-authenticated-user-id')&&
- request.headers.get('oai-authenticated-user-email')?.toLowerCase()===env.GUILD_ADMIN_EMAIL.toLowerCase()
-);
+const accessAlgorithm={name:'RSASSA-PKCS1-v1_5',hash:'SHA-256'};
+const jwtBytes=value=>Uint8Array.from(atob(value.replaceAll('-','+').replaceAll('_','/')),char=>char.charCodeAt(0));
+const jwtJson=value=>JSON.parse(new TextDecoder().decode(jwtBytes(value)));
+
+async function isOwner(request,env){
+ if(!env.GUILD_ADMIN_EMAIL)return false;
+ const email=env.GUILD_ADMIN_EMAIL.toLowerCase();
+ if(!env.ACCESS_TEAM_DOMAIN){
+  return Boolean(request.headers.get('oai-authenticated-user-id')&&
+   request.headers.get('oai-authenticated-user-email')?.toLowerCase()===email);
+ }
+ const token=request.headers.get('Cf-Access-Jwt-Assertion');
+ if(!env.ACCESS_AUD||!token||token.length>16384)return false;
+ const parts=token.split('.');
+ if(parts.length!==3)return false;
+ const [header,payload,signature]=parts;
+ const issuer='https://'+env.ACCESS_TEAM_DOMAIN;
+ try{
+  const {alg,kid}=jwtJson(header);
+  const claims=jwtJson(payload);
+  const now=Date.now()/1000;
+  if(alg!=='RS256'||typeof kid!=='string'||claims.iss!==issuer||
+   !Array.isArray(claims.aud)||!claims.aud.includes(env.ACCESS_AUD)||
+   !Number.isFinite(claims.exp)||claims.exp<=now||(claims.nbf!==undefined&&
+   (!Number.isFinite(claims.nbf)||claims.nbf>now))||
+   typeof claims.email!=='string'||claims.email.toLowerCase()!==email)return false;
+  const response=await fetch(issuer+'/cdn-cgi/access/certs',{redirect:'error',cf:{cacheEverything:true,cacheTtl:300}});
+  if(!response.ok)return false;
+  const {keys}=await response.json();
+  const key=keys.find(key=>key.kid===kid&&key.kty==='RSA');
+  if(!key)return false;
+  const publicKey=await crypto.subtle.importKey('jwk',key,accessAlgorithm,false,['verify']);
+  return await crypto.subtle.verify(accessAlgorithm,publicKey,jwtBytes(signature),
+   new TextEncoder().encode(header+'.'+payload));
+ }catch{return false}
+}
+
 
 const personRoles=['會長','副會長','理事','成員'];
 const personMedia=['jpg','png','gif','webp','mp4'];
@@ -134,9 +167,14 @@ async function readState(env){
 }
 
 async function admin(request,env,path){
- if(!isOwner(request,env)){
+ if(!await isOwner(request,env)){
+  if(env.ACCESS_TEAM_DOMAIN)return fail('請先登入會長帳號',401);
   return fail(request.headers.has('oai-authenticated-user-id')?'此帳號沒有會長權限':'請先登入會長帳號',
    request.headers.has('oai-authenticated-user-id')?403:401);
+ }
+ if(path.startsWith('media/')&&['GET','HEAD'].includes(request.method)){
+  const id=path.slice(6);
+  return assetId.test(id)?serveMedia(request,env,id):fail('找不到檔案',404);
  }
  if(path==='state'&&request.method==='GET'){
   const row=await readState(env);
@@ -210,6 +248,11 @@ export default {
   try{
    if(pathname.startsWith('/api/admin/'))return await admin(request,env,pathname.slice(11));
    if(request.method!=='GET'&&request.method!=='HEAD')return fail('不支援的操作',405);
+   const accessAdmin=env.ACCESS_TEAM_DOMAIN&&['/admin','/admin/'].includes(pathname);
+   if(accessAdmin){
+    if(!await isOwner(request,env))return fail('請先登入會長帳號',401);
+    if(pathname==='/admin/')return Response.redirect(new URL('/admin',request.url),302);
+   }
    if(pathname==='/api/content'){
     const {published}=await readState(env);
     return new Response(request.method==='HEAD'?null:JSON.stringify(publicSnapshot(published)),{
@@ -219,17 +262,32 @@ export default {
    if(pathname.startsWith('/media/')){
     const id=pathname.slice(7);
     if(!assetId.test(id))return fail('找不到圖片',404);
-    if(!isOwner(request,env)){
+    if(env.ACCESS_TEAM_DOMAIN||!await isOwner(request,env)){
      const {published}=await readState(env);
      if(!publicAsset(publicSnapshot(published),id))return fail('找不到圖片',404);
     }
     return await serveMedia(request,env,id);
    }
-   const asset=assets[pathname==='/'?'/index.html':pathname];
+   const assetPath=pathname==='/'||accessAdmin?'/index.html':pathname;
+   if(env.ASSETS){
+    if(assetPath==='/index.html'&&env.ACCESS_TEAM_DOMAIN){
+     const page=await env.ASSETS.fetch(new Request(new URL('/',request.url),{method:request.method}));
+     return new HTMLRewriter().on('html',{element(element){element.setAttribute('data-access-login','1')}})
+      .transform(new Response(request.method==='HEAD'?null:page.body,{status:page.status,headers:{
+       'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'
+      }}));
+    }
+    return env.ASSETS.fetch(request);
+   }
+   const asset=assets[assetPath];
    if(!Array.isArray(asset))return fail('找不到頁面',404);
    const [type,encoded]=asset;
-   return new Response(request.method==='HEAD'?null:Uint8Array.from(atob(encoded),char=>char.charCodeAt(0)),{
-    headers:{'Content-Type':type,'Cache-Control':'no-cache','X-Content-Type-Options':'nosniff'}
+   let body=request.method==='HEAD'?null:jwtBytes(encoded);
+   if(body&&assetPath==='/index.html'&&env.ACCESS_TEAM_DOMAIN){
+    body=new TextDecoder().decode(body).replace('<html ','<html data-access-login="1" ');
+   }
+   return new Response(body,{
+    headers:{'Content-Type':type,'Cache-Control':accessAdmin?'no-store':'no-cache','X-Content-Type-Options':'nosniff'}
    });
   }catch(error){
    console.error(error);

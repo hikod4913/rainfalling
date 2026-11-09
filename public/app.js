@@ -22,14 +22,15 @@ const defaultRecords={
 let adminRecords;
 let changeRecords;
 let uploadRecordMedia;
-const mediaUrl=id=>'/media/'+id;
-function hydrateAsset(asset){
+const cloudflareAccess=document.documentElement.dataset.accessLogin==='1';
+const mediaUrl=(id,draft=false)=>(draft&&cloudflareAccess?'/api/admin/media/':'/media/')+id;
+function hydrateAsset(asset,draft=false){
  if(asset.demo)return demoCover;
- return {...asset,url:mediaUrl(asset.id),poster:asset.posterId?mediaUrl(asset.posterId):null};
+ return {...asset,url:mediaUrl(asset.id,draft),poster:asset.posterId?mediaUrl(asset.posterId,draft):null};
 }
-function applyRecords(records=defaultRecords){
+function applyRecords(records=defaultRecords,draft=false){
  const activeGuilds=records.guilds.filter(guild=>!guild.disabled).map(guild=>guild.name);
- const hydrate=person=>({...person,assets:person.assets.map(hydrateAsset)});
+ const hydrate=person=>({...person,assets:person.assets.map(asset=>hydrateAsset(asset,draft))});
  members=records.members.filter(person=>!person.archived).map(hydrate);
  friends=records.friends.filter(person=>!person.archived&&activeGuilds.includes(person.guild)).map(hydrate);
  guilds=activeGuilds;
@@ -39,7 +40,7 @@ function applyRecords(records=defaultRecords){
  renderFriends();
  const currentId=tracks[trackIndex]?.id;
  const currentUrl=audio.getAttribute('src');
- tracks=records.tracks.map(track=>({...track,url:mediaUrl(track.id)}));
+ tracks=records.tracks.map(track=>({...track,url:mediaUrl(track.id,draft)}));
  trackIndex=Math.max(0,tracks.findIndex(track=>track.id===currentId));
  if(tracks.length){
   if(currentUrl!==tracks[trackIndex].url)audio.pause();
@@ -77,8 +78,8 @@ chapters.forEach((chapter,index)=>{
   chapterTabs.append(button);
 });
 
-function setPageImage(element,fallback,cover){
-  element.src=cover?'/media/'+cover.id:fallback;
+function setPageImage(element,fallback,cover,draft=false){
+  element.src=cover?mediaUrl(cover.id,draft):fallback;
   element.classList.toggle('has-custom-crop',Boolean(cover));
   if(cover){
     element.style.setProperty('--crop-desktop',cover.desktopX+'% '+cover.desktopY+'%');
@@ -88,7 +89,7 @@ function setPageImage(element,fallback,cover){
 
 function renderChapter(index){
   const chapter=chapters[index];
-  setPageImage(chapterArt,'./assets/memory-'+chapter.art+'.svg',chapter.cover);
+  setPageImage(chapterArt,'./assets/memory-'+chapter.art+'.svg',chapter.cover,chapter.draft);
   $('#chapter-title').textContent=chapter.title;
   $('#chapter-text').textContent=chapter.text;
   $('#chapter-glyph').textContent=chapter.glyph;
@@ -178,7 +179,7 @@ function loadEditor(){
  renderUploadPreview();
 }
 $('#admin-kind').onchange=adminPeople;$('#admin-person').onchange=loadEditor;$$('[data-admin]').forEach(b=>b.onclick=()=>{$$('[data-admin]').forEach(x=>x.classList.toggle('active',x===b));$$('[data-admin]').forEach(tab=>$('#admin-'+tab.dataset.admin).hidden=tab!==b)});
-function renderUploadPreview(){$('#upload-preview').innerHTML=stagedAssets.map((asset,i)=>{const a=hydrateAsset(asset);return `<div class="upload-item">${a.type==='mp4'?`<video src="${a.url}" muted playsinline preload="metadata"></video>`:`<img src="${a.poster||a.url}" alt="素材預覽">`}<small>${i===0?'正面封面 · ':''}${a.type.toUpperCase()} · ${a.width} × ${a.height}<br>${esc(a.name)}<br>${(a.size/1024/1024).toFixed(2)} MB</small><button type="button" data-cover="${i}">設為正面封面</button><button type="button" data-remove="${i}">移除</button></div>`}).join('')}
+function renderUploadPreview(){$('#upload-preview').innerHTML=stagedAssets.map((asset,i)=>{const a=hydrateAsset(asset,true);return `<div class="upload-item">${a.type==='mp4'?`<video src="${a.url}" muted playsinline preload="metadata"></video>`:`<img src="${a.poster||a.url}" alt="素材預覽">`}<small>${i===0?'正面封面 · ':''}${a.type.toUpperCase()} · ${a.width} × ${a.height}<br>${esc(a.name)}<br>${(a.size/1024/1024).toFixed(2)} MB</small><button type="button" data-cover="${i}">設為正面封面</button><button type="button" data-remove="${i}">移除</button></div>`}).join('')}
 $('#upload-preview').onclick=e=>{const cover=e.target.closest('[data-cover]'),remove=e.target.closest('[data-remove]');if(cover){const i=Number(cover.dataset.cover);stagedAssets.unshift(...stagedAssets.splice(i,1));renderUploadPreview()}if(remove){stagedAssets.splice(Number(remove.dataset.remove),1);renderUploadPreview()}};
 async function detectFile(f){const bytes=new Uint8Array(await f.slice(0,32).arrayBuffer()),ascii=(a,b)=>String.fromCharCode(...bytes.slice(a,b));if(ascii(0,6)==='GIF87a'||ascii(0,6)==='GIF89a')return 'gif';if(bytes[0]===137&&ascii(1,4)==='PNG'&&bytes[4]===13&&bytes[5]===10&&bytes[6]===26&&bytes[7]===10)return 'png';if(bytes[0]===255&&bytes[1]===216&&bytes[2]===255)return 'jpg';if(ascii(0,4)==='RIFF'&&ascii(8,12)==='WEBP')return 'webp';if(ascii(4,8)==='ftyp'&&['isom','iso2','mp41','mp42','avc1','M4V '].includes(ascii(8,12)))return 'mp4';if(ascii(0,3)==='ID3'||(bytes[0]===255&&(bytes[1]&224)===224))return 'mp3';throw Error('無法辨識或不支援的檔案格式')}
 function inspectMedia(f,type){return new Promise((resolve,reject)=>{const url=URL.createObjectURL(f),el=document.createElement(type==='mp4'?'video':'img'),timeout=setTimeout(()=>fail('檔案讀取逾時或已損壞'),12000);function fail(msg){clearTimeout(timeout);URL.revokeObjectURL(url);reject(Error(msg))}el.onerror=()=>fail('檔案無法解碼，請確認內容有效');if(type==='mp4'){el.muted=true;el.preload='metadata';el.onloadedmetadata=()=>{if(!el.videoWidth||!el.videoHeight)return fail('無效影片');clearTimeout(timeout);resolve({url,type,width:el.videoWidth,height:el.videoHeight,poster:null,name:f.name,size:f.size})}}else el.onload=()=>{clearTimeout(timeout);let poster=null;if(type==='gif'){try{const c=document.createElement('canvas'),scale=Math.min(1,600/el.naturalWidth);c.width=el.naturalWidth*scale;c.height=el.naturalHeight*scale;c.getContext('2d').drawImage(el,0,0,c.width,c.height);poster=c.toDataURL('image/png')}catch{}}resolve({url,type,width:el.naturalWidth,height:el.naturalHeight,poster,name:f.name,size:f.size})};el.src=url})}

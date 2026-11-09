@@ -223,7 +223,7 @@ enter.onclick=async()=>{
  $('#home-title').focus({preventScroll:true});
  updateScroll();
  const url=new URL(location.href);
- if(url.searchParams.get('admin')==='1'){
+ if(url.pathname==='/admin'||url.searchParams.get('admin')==='1'){
   url.searchParams.delete('admin');
   history.replaceState(history.state,'',url);
   $('#admin-open').click();
