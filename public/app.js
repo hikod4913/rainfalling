@@ -7,9 +7,32 @@ let guilds=['星海旅團','月光茶會','遠方來信'];
 let friends=Array.from({length:9},(_,i)=>({id:'f'+i,kind:'friend',role:'公會好友',name:['晨星','晚風','星砂','小月','茶茶','眠兔','旅人','微光','歸舟'][i],nickname:'待留下的綽號',notes:'好友資料示範：記下我們相遇的契機、一起參加的活動，還有想留給彼此的一句話。',guild:guilds[Math.floor(i/3)],seed:i+23,assets:[]}));
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function avatar(p,angle=0){const h=(220+p.seed*29)%360,hair=['#b5c4e0','#bbb0d4','#d2c4ac','#858eac','#a8bac4'][p.seed%5],cloth=`hsl(${h} 32% 25%)`,edge=`hsl(${h} 42% 65%)`,back=angle===2,side=angle===1;return `<svg viewBox="0 0 240 300" xmlns="http://www.w3.org/2000/svg" aria-label="${esc(p.name)}角色示意${['正面','側面','背面'][angle]}"><defs><radialGradient id="a${p.id}${angle}"><stop stop-color="${edge}" stop-opacity=".22"/><stop offset="1" stop-color="${cloth}" stop-opacity="0"/></radialGradient></defs><circle cx="120" cy="140" r="110" fill="url(#a${p.id}${angle})"/><circle cx="120" cy="133" r="79" fill="none" stroke="${edge}" opacity=".17"/><path d="M45 280L66 170Q75 148 101 143H139Q165 150 174 170L195 280Z" fill="${cloth}" stroke="${edge}" stroke-opacity=".4"/><path d="M77 165L61 270 96 260 115 166M163 165L179 270 144 260 125 166" fill="#101a30"/><path d="M92 145L120 174 149 145 139 191 120 204 101 190Z" fill="${edge}" opacity=".65"/><path d="M110 125H130V154L120 164 109 153Z" fill="#d9bca9"/><path d="M82 80Q78 38 120 36Q166 36 159 89L155 133 139 147H99L80 130Z" fill="${hair}"/>${back?`<path d="M84 76Q120 40 156 76L162 151Q120 166 78 151Z" fill="${hair}"/><path d="M95 59L88 147M110 50L108 154M132 52L136 153M146 66L153 144" stroke="#293449" stroke-opacity=".2" fill="none"/>`:`<path d="M91 75Q120 60 151 76L148 115Q145 138 120 145Q96 137 92 116Z" fill="#e4c9b7"/><path d="M83 83Q79 40 119 37Q162 36 160 83L143 73 145 98 127 73 116 91 109 68 91 100Z" fill="${hair}"/><path d="M96 107L109 105M130 105L143 107" stroke="#263451" stroke-width="3" stroke-linecap="round"/><path d="M99 109L107 108M133 108L141 109" stroke="${edge}" stroke-width="3"/><path d="M115 128Q120 131 125 128" stroke="#ad7b7b" fill="none"/>`}${side?'<path d="M68 34H115V158H68Z" fill="'+cloth+'" opacity=".7"/>':''}<path d="M82 200L64 270M158 200L177 270M120 205V286" stroke="${edge}" stroke-opacity=".45"/><path d="M106 181L120 174 134 181 120 198Z" fill="#d9b990"/><path d="M116 183L120 178 124 183 120 191Z" fill="${edge}"/><path d="M80 235L92 241 80 247 68 241Z" fill="${edge}" opacity=".7"/><path d="M156 237L164 245 156 253 148 245Z" stroke="#d9b990" fill="none"/><path d="M45 280Q120 297 195 280" stroke="${edge}" stroke-opacity=".3" fill="none"/></svg>`}
-function views(p){if(!p.assets.length)return [0,1,2].map(i=>({demo:i}));if(p.mode==='triptych')return p.assets.flatMap(a=>a.type==='mp4'||a.type==='gif'?[a]:[0,1,2].map(crop=>({...a,crop})));return p.assets}
-function mediaHTML(p,index=0,large=false){const a=views(p)[index];if(a.demo!==undefined)return avatar(p,a.demo);if(a.type==='mp4')return `<video src="${a.url}" ${large?'autoplay loop':''} muted playsinline preload="metadata" ${a.poster?'poster="'+a.poster+'"':''} aria-label="${esc(p.name)}角色影片"></video>`;return `<img class="${a.crop!==undefined?'triptych-crop':''}" style="${a.crop!==undefined?'--crop:'+a.crop:''}" src="${large?a.url:(a.poster||a.url)}" alt="${esc(p.name)}${a.crop!==undefined?['正面','側面','背面'][a.crop]:'角色圖片'}" ${large?'':'loading="lazy"'}>`}
-function card(p,i){const a=p.assets[0],label=p.mode==='triptych'?'三視圖':a?a.type.toUpperCase():'角色示意';return `<article class="person-card" style="--card-delay:${Math.min(Math.abs(i%5-2)*80,160)}ms" data-person="${p.id}" tabindex="0" role="button" aria-label="${esc(p.role+' '+p.name)}"><div class="portrait" style="--h:${220+p.seed*29%100}"><div class="card-media">${mediaHTML(p)}</div><span class="image-frame" aria-hidden="true"><svg viewBox="0 0 100 100" preserveAspectRatio="none"><rect class="frame-track" x="2" y="2" width="96" height="96" pathLength="100"/><rect class="frame-runner" x="2" y="2" width="96" height="96" pathLength="100"/><path class="frame-corner" d="M2 10V2H10"/><path class="frame-corner" d="M90 2H98V10"/><path class="frame-corner" d="M98 90V98H90"/><path class="frame-corner" d="M10 98H2V90"/></svg></span><span class="portrait-badge">${label}</span><span class="portrait-index">${String(i+1).padStart(3,'0')}</span>${views(p).length>1?`<button class="card-nav card-prev" data-card-dir="-1" aria-label="${esc(p.name)}上一個視角">‹</button><button class="card-nav card-next" data-card-dir="1" aria-label="${esc(p.name)}下一個視角">›</button><span class="card-view-count">1 / ${views(p).length}</span>`:''}</div><div class="person-label"><div><small>${esc(p.role)}</small><b>${esc(p.name)}</b>${p.kind==='friend'?'<small class="guild-name">'+esc(p.guild)+'</small>':''}</div><span>↗</span></div></article>`}
+const viewLabels={gallery:'相簿圖片',front:'正面',side:'側面',back:'背面',group:'合照',sheet:'橫排三視圖'};
+const angles=['front','side','back'];
+function assetView(p,asset){
+ if(asset.view)return asset.view;
+ return p.mode==='triptych'&&!['gif','mp4'].includes(asset.type)?'sheet':'gallery';
+}
+function views(p){
+ if(!p.assets.length)return [{demo:0}];
+ return p.assets.flatMap(asset=>assetView(p,asset)==='sheet'
+  ?angles.map((view,crop)=>({...asset,view,crop}))
+  :[{...asset,view:assetView(p,asset)}]);
+}
+function viewLabel(asset){
+ if(asset.demo!==undefined)return '角色示意';
+ const format=asset.type.toUpperCase();
+ return asset.view==='gallery'?format:viewLabels[asset.view]+' · '+format;
+}
+function mediaHTML(p,index=0,large=false){
+ const a=views(p)[index];
+ if(a.demo!==undefined)return avatar(p,a.demo);
+ if(a.type==='mp4')return `<video src="${a.url}" ${large?'autoplay loop':''} muted playsinline preload="${large?'metadata':'none'}" ${a.poster?'poster="'+a.poster+'"':''} aria-label="${esc(p.name)}角色影片"></video>`;
+ const src=large?a.url:a.type==='gif'?a.poster:a.url;
+ const image=`${!large&&!src?'<span class="gif-placeholder" aria-hidden="true">GIF</span>':''}<img class="${a.crop!==undefined?'triptych-crop':''}" style="${a.crop!==undefined?'--crop:'+a.crop:''}" ${src?'src="'+src+'"':''} alt="${esc(p.name+' '+viewLabel(a))}" ${large?'':'loading="lazy"'}>`;
+ return a.crop===undefined?image:`<span class="triptych-panel" style="--panel-ratio:${a.width/(3*a.height)}">${image}</span>`;
+}
+function card(p,i){const gallery=views(p),label=viewLabel(gallery[0]);return `<article class="person-card" style="--card-delay:${Math.min(Math.abs(i%5-2)*80,160)}ms" data-person="${p.id}" tabindex="0" role="button" aria-label="${esc(p.role+' '+p.name)}"><div class="portrait" style="--h:${220+p.seed*29%100}"><div class="card-media"><div class="card-slide">${mediaHTML(p)}</div></div><span class="image-frame" aria-hidden="true"><svg viewBox="0 0 100 100" preserveAspectRatio="none"><rect class="frame-track" x="2" y="2" width="96" height="96" pathLength="100"/><rect class="frame-runner" x="2" y="2" width="96" height="96" pathLength="100"/><path class="frame-corner" d="M2 10V2H10"/><path class="frame-corner" d="M90 2H98V10"/><path class="frame-corner" d="M98 90V98H90"/><path class="frame-corner" d="M10 98H2V90"/></svg></span><span class="portrait-badge">${label}</span><span class="portrait-index">${String(i+1).padStart(3,'0')}</span>${gallery.length>1?`<button class="card-nav card-prev" data-card-dir="-1" aria-label="${esc(p.name)}上一張">‹</button><button class="card-nav card-next" data-card-dir="1" aria-label="${esc(p.name)}下一張">›</button><span class="card-view-count" aria-live="polite">1 / ${gallery.length}</span>`:''}</div><div class="person-label"><div><small>${esc(p.role)}</small><b>${esc(p.name)}</b>${p.kind==='friend'?'<small class="guild-name">'+esc(p.guild)+'</small>':''}</div><span>↗</span></div></article>`}
 // A bundled, three-panel SVG demonstrates the crop interaction without external assets.
 {const p=members[0];const sheet='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 300">'+[0,1,2].map(i=>`<g transform="translate(${i*240},0)">${avatar(p,i).replace('<svg ','<svg x="0" y="0" width="240" height="300" ')}</g>`).join('')+'</svg>';p.mode='triptych';p.assets=[{type:'png',url:'data:image/svg+xml;charset=utf-8,'+encodeURIComponent(sheet),name:'三視圖示意.svg',size:sheet.length,width:720,height:300}];}
 const demoCover=members[0].assets[0];
@@ -56,9 +79,29 @@ let roleFilter='全部',showAll=false;function renderMembers(){const keyword=$('
 ['全部','會長','副會長','理事','成員'].forEach(r=>{const b=document.createElement('button');b.textContent=r;b.onclick=()=>{roleFilter=r;showAll=false;renderMembers()};$('#role-filters').append(b)});$('#member-search').oninput=()=>{showAll=false;renderMembers()};$('#member-more').onclick=()=>{showAll=!showAll;renderMembers()};renderMembers();
 let guildFilter='全部公會',friendOffset=0;const mobile=matchMedia('(max-width:700px)');function friendList(){return friends.filter(p=>guildFilter==='全部公會'||p.guild===guildFilter)}function renderGuildFilters(){$('#guild-filters').innerHTML='';['全部公會',...guilds].forEach(g=>{const b=document.createElement('button');b.textContent=g;b.classList.toggle('active',g===guildFilter);b.setAttribute('aria-pressed',g===guildFilter);b.onclick=()=>{guildFilter=g;friendOffset=0;renderGuildFilters();renderFriends()};$('#guild-filters').append(b)})}function renderFriends(){const list=friendList(),n=mobile.matches?2:5,count=Math.min(n,list.length);friendOffset=list.length?((friendOffset%list.length)+list.length)%list.length:0;const visible=Array.from({length:count},(_,i)=>list[(friendOffset+i)%list.length]);$('#friend-grid').innerHTML=visible.map(card).join('')||'<p class="empty">這個公會的好友席位，等你來填。</p>';$('#friend-position').textContent=list.length?`${friendOffset+1} / ${list.length} 位好友`:'尚無好友';$('#friend-prev').disabled=$('#friend-next').disabled=list.length<=count;$('#friend-grid').classList.remove('stage-enter');void $('#friend-grid').offsetWidth;$('#friend-grid').classList.add('stage-enter')}$('#friend-prev').onclick=()=>{friendOffset--;renderFriends()};$('#friend-next').onclick=()=>{friendOffset++;renderFriends()};mobile.addEventListener('change',renderFriends);renderGuildFilters();renderFriends();
 function swipe(el,prev,next){let x,y;el.addEventListener('touchstart',e=>{x=e.touches[0].clientX;y=e.touches[0].clientY},{passive:true});el.addEventListener('touchend',e=>{const dx=e.changedTouches[0].clientX-x,dy=e.changedTouches[0].clientY-y;if(Math.abs(dx)>45&&Math.abs(dx)>Math.abs(dy)*1.3){dx>0?prev():next()}},{passive:true})}swipe($('#friend-viewport'),()=>$('#friend-prev').click(),()=>$('#friend-next').click());
-let activePerson=null,mediaIndex=0;function getPerson(id){return [...members,...friends].find(p=>p.id===id)}function renderProfile(){const p=activePerson,n=views(p).length;mediaIndex=(mediaIndex+n)%n;$('#profile-image').innerHTML=mediaHTML(p,mediaIndex,true);$('#profile-role').textContent=p.role;$('#profile-name').textContent=p.name;$('#profile-nickname').textContent=p.nickname||'—';$('#profile-guild').textContent=p.guild;$('#profile-notes').textContent=p.notes||'—';$('#media-prev').hidden=$('#media-next').hidden=n<=1;$('#media-dots').innerHTML=Array.from({length:n},(_,i)=>`<button class="${i===mediaIndex?'active':''}" data-media="${i}" aria-label="查看第 ${i+1} 張圖片" aria-pressed="${i===mediaIndex}"></button>`).join('');$('#profile-media-note').textContent=p.assets.length?`${mediaIndex+1} / ${n} · ${(views(p)[mediaIndex].type||'示意').toUpperCase()} · 左右切換，首尾循環`:`${mediaIndex+1} / 3 · ${['正面','側面','背面'][mediaIndex]}示意圖 · 正式版可上傳獨立三視圖`;}
+let activePerson=null,mediaIndex=0;function getPerson(id){return [...members,...friends].find(p=>p.id===id)}function renderProfile(){const p=activePerson,n=views(p).length;mediaIndex=(mediaIndex+n)%n;$('#profile-image').innerHTML=mediaHTML(p,mediaIndex,true);$('#profile-role').textContent=p.role;$('#profile-name').textContent=p.name;$('#profile-nickname').textContent=p.nickname||'—';$('#profile-guild').textContent=p.guild;$('#profile-notes').textContent=p.notes||'—';$('#media-prev').hidden=$('#media-next').hidden=n<=1;$('#media-dots').innerHTML=Array.from({length:n},(_,i)=>`<button class="${i===mediaIndex?'active':''}" data-media="${i}" aria-label="查看第 ${i+1} 張圖片" aria-pressed="${i===mediaIndex}"></button>`).join('');$('#profile-media-note').textContent=n>1?`${mediaIndex+1} / ${n} · ${viewLabel(views(p)[mediaIndex])} · 左右切換，首尾循環`:viewLabel(views(p)[mediaIndex]);}
 document.addEventListener('click',e=>{const c=e.target.closest('[data-person]');if(c){activePerson=getPerson(c.dataset.person);mediaIndex=Number(c.dataset.view||0);c.classList.add('selected');setTimeout(()=>c.classList.remove('selected'),1500);renderProfile();$('#profile-dialog').showModal()}const d=e.target.closest('[data-media]');if(d){mediaIndex=Number(d.dataset.media);renderProfile()}});$('#media-prev').onclick=()=>{mediaIndex--;renderProfile()};$('#media-next').onclick=()=>{mediaIndex++;renderProfile()};swipe($('.profile-media'),()=>$('#media-prev').click(),()=>$('#media-next').click());$('#profile-dialog').addEventListener('keydown',e=>{if(e.key==='ArrowLeft')$('#media-prev').click();if(e.key==='ArrowRight')$('#media-next').click()});$$('.dialog-close').forEach(b=>b.onclick=()=>b.closest('dialog').close());$$('dialog').forEach(d=>{d.addEventListener('click',e=>{if(e.target===d){const r=d.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)d.close()}});d.addEventListener('close',()=>d.querySelectorAll('video').forEach(v=>v.pause()))});
-function hoverMedia(e,on){const c=e.target.closest('[data-person]');if(!c)return;if(e.relatedTarget&&c.contains(e.relatedTarget))return;const p=getPerson(c.dataset.person),a=views(p)[Number(c.dataset.view||0)];if(!a||a.demo!==undefined)return;const v=c.querySelector('video'),img=c.querySelector('img');if(v){if(on)v.play().catch(()=>{});else{v.pause();v.currentTime=0}}if(img&&a.type==='gif'){img.src=on?a.url:(a.poster||a.url)}}document.addEventListener('pointerover',e=>hoverMedia(e,true));document.addEventListener('pointerout',e=>hoverMedia(e,false));document.addEventListener('focusin',e=>hoverMedia(e,true));document.addEventListener('focusout',e=>hoverMedia(e,false));
+function syncCardPlayback(card,playing){
+ const asset=views(getPerson(card.dataset.person))[Number(card.dataset.view||0)];
+ const slide=card.querySelector('.card-slide:last-child');
+ if(asset.type==='gif'){
+  const img=slide.querySelector('img'),src=playing?asset.url:asset.poster;
+  if(src&&img.getAttribute('src')!==src)img.src=src;
+  else if(!src)img.removeAttribute('src');
+ }
+ const video=slide.querySelector('video');
+ if(video&&playing)video.play().catch(()=>{});
+ else if(video){video.pause();video.currentTime=0}
+}
+for(const [event,playing] of [['pointerover',true],['pointerout',false]]){
+ document.addEventListener(event,e=>{
+  const card=e.target.closest('.person-card');
+  if(!card||e.pointerType==='touch'||card.contains(e.relatedTarget))return;
+  card.toggleAttribute('data-card-hover',playing);
+  syncCardPlayback(card,playing);
+ });
+}
+$('#profile-dialog').addEventListener('close',()=>$('#profile-image').replaceChildren());
 let chapterIndex=-1;
 let chapterTransition;
 const chapterStage=$('.chapter-stage');
@@ -179,8 +222,75 @@ function loadEditor(){
  renderUploadPreview();
 }
 $('#admin-kind').onchange=adminPeople;$('#admin-person').onchange=loadEditor;$$('[data-admin]').forEach(b=>b.onclick=()=>{$$('[data-admin]').forEach(x=>x.classList.toggle('active',x===b));$$('[data-admin]').forEach(tab=>$('#admin-'+tab.dataset.admin).hidden=tab!==b)});
-function renderUploadPreview(){$('#upload-preview').innerHTML=stagedAssets.map((asset,i)=>{const a=hydrateAsset(asset,true);return `<div class="upload-item">${a.type==='mp4'?`<video src="${a.url}" muted playsinline preload="metadata"></video>`:`<img src="${a.poster||a.url}" alt="素材預覽">`}<small>${i===0?'正面封面 · ':''}${a.type.toUpperCase()} · ${a.width} × ${a.height}<br>${esc(a.name)}<br>${(a.size/1024/1024).toFixed(2)} MB</small><button type="button" data-cover="${i}">設為正面封面</button><button type="button" data-remove="${i}">移除</button></div>`}).join('')}
-$('#upload-preview').onclick=e=>{const cover=e.target.closest('[data-cover]'),remove=e.target.closest('[data-remove]');if(cover){const i=Number(cover.dataset.cover);stagedAssets.unshift(...stagedAssets.splice(i,1));renderUploadPreview()}if(remove){stagedAssets.splice(Number(remove.dataset.remove),1);renderUploadPreview()}};
+const uploadPreview=$('#upload-preview');
+function renderUploadPreview(){
+ uploadPreview.innerHTML=stagedAssets.map((asset,i)=>{
+  const a=hydrateAsset(asset,true);
+  const options=Object.entries(viewLabels).filter(([value])=>value!=='sheet'||!['gif','mp4'].includes(a.type));
+  const view=assetView({mode:$('#edit-mode').value},a);
+  return `<div class="upload-item" data-asset-index="${i}">
+    <button class="asset-drag" type="button" draggable="true" title="拖曳調整順序" aria-label="拖曳第 ${i+1} 張">⠿</button>
+    ${a.type==='mp4'?`<video src="${a.url}" muted playsinline preload="metadata"></video>`:`<img src="${a.poster||a.url}" alt="素材預覽">`}
+    <small>${i+1} · ${i===0?'封面 · ':''}${a.type.toUpperCase()}<br>${esc(a.name)}</small>
+    ${asset.demo?'':`<select data-asset-view="${i}" aria-label="第 ${i+1} 張素材的分類">${options.map(([value,label])=>`<option value="${value}" ${value===view?'selected':''}>${label}</option>`).join('')}</select>`}
+    <div class="asset-actions">
+      <button type="button" data-asset-move="-1" aria-label="第 ${i+1} 張向前" ${i===0?'disabled':''}>←</button>
+      <button type="button" data-asset-move="1" aria-label="第 ${i+1} 張向後" ${i===stagedAssets.length-1?'disabled':''}>→</button>
+      <button type="button" data-cover ${i===0?'disabled':''}>設為封面</button>
+      <button type="button" data-remove>移除</button>
+    </div>
+  </div>`;
+ }).join('');
+}
+function moveAsset(from,to){
+ if(from===to||from<0||from>=stagedAssets.length||to<0||to>=stagedAssets.length)return false;
+ stagedAssets.splice(to,0,...stagedAssets.splice(from,1));
+ renderUploadPreview();
+ return true;
+}
+uploadPreview.onclick=e=>{
+ const button=e.target.closest('button'),item=button?.closest('[data-asset-index]');
+ if(!item)return;
+ const i=Number(item.dataset.assetIndex);
+ if(button.hasAttribute('data-cover'))moveAsset(i,0);
+ if(button.hasAttribute('data-remove')){stagedAssets.splice(i,1);renderUploadPreview()}
+ if(button.hasAttribute('data-asset-move')){
+  const to=i+Number(button.dataset.assetMove);
+  if(moveAsset(i,to))uploadPreview.querySelector(`[data-asset-index="${to}"] button[data-asset-move]:not(:disabled)`)?.focus();
+ }
+};
+$('#edit-mode').onchange=renderUploadPreview;
+uploadPreview.onchange=e=>{
+ const select=e.target.closest('[data-asset-view]');
+ if(select){const i=Number(select.dataset.assetView);stagedAssets[i]={...stagedAssets[i],view:select.value}}
+};
+let draggedAsset=null;
+uploadPreview.ondragstart=e=>{
+ const handle=e.target.closest('.asset-drag');
+ if(!handle){e.preventDefault();return}
+ draggedAsset=Number(handle.closest('[data-asset-index]').dataset.assetIndex);
+ e.dataTransfer.effectAllowed='move';
+ e.dataTransfer.setData('text/plain',String(draggedAsset));
+};
+uploadPreview.ondragover=e=>{
+ const target=e.target.closest('[data-asset-index]');
+ if(draggedAsset===null||!target)return;
+ e.preventDefault();
+ uploadPreview.querySelector('.asset-drop-target')?.classList.remove('asset-drop-target');
+ target.classList.add('asset-drop-target');
+};
+function clearAssetDrag(){
+ draggedAsset=null;
+ uploadPreview.querySelector('.asset-drop-target')?.classList.remove('asset-drop-target');
+}
+uploadPreview.ondrop=e=>{
+ const target=e.target.closest('[data-asset-index]');
+ if(draggedAsset===null||!target)return;
+ e.preventDefault();
+ moveAsset(draggedAsset,Number(target.dataset.assetIndex));
+ clearAssetDrag();
+};
+uploadPreview.ondragend=clearAssetDrag;
 async function detectFile(f){const bytes=new Uint8Array(await f.slice(0,32).arrayBuffer()),ascii=(a,b)=>String.fromCharCode(...bytes.slice(a,b));if(ascii(0,6)==='GIF87a'||ascii(0,6)==='GIF89a')return 'gif';if(bytes[0]===137&&ascii(1,4)==='PNG'&&bytes[4]===13&&bytes[5]===10&&bytes[6]===26&&bytes[7]===10)return 'png';if(bytes[0]===255&&bytes[1]===216&&bytes[2]===255)return 'jpg';if(ascii(0,4)==='RIFF'&&ascii(8,12)==='WEBP')return 'webp';if(ascii(4,8)==='ftyp'&&['isom','iso2','mp41','mp42','avc1','M4V '].includes(ascii(8,12)))return 'mp4';if(ascii(0,3)==='ID3'||(bytes[0]===255&&(bytes[1]&224)===224))return 'mp3';throw Error('無法辨識或不支援的檔案格式')}
 function inspectMedia(f,type){return new Promise((resolve,reject)=>{const url=URL.createObjectURL(f),el=document.createElement(type==='mp4'?'video':'img'),timeout=setTimeout(()=>fail('檔案讀取逾時或已損壞'),12000);function fail(msg){clearTimeout(timeout);URL.revokeObjectURL(url);reject(Error(msg))}el.onerror=()=>fail('檔案無法解碼，請確認內容有效');if(type==='mp4'){el.muted=true;el.preload='metadata';el.onloadedmetadata=()=>{if(!el.videoWidth||!el.videoHeight)return fail('無效影片');clearTimeout(timeout);resolve({url,type,width:el.videoWidth,height:el.videoHeight,poster:null,name:f.name,size:f.size})}}else el.onload=()=>{clearTimeout(timeout);let poster=null;if(type==='gif'){try{const c=document.createElement('canvas'),scale=Math.min(1,600/el.naturalWidth);c.width=el.naturalWidth*scale;c.height=el.naturalHeight*scale;c.getContext('2d').drawImage(el,0,0,c.width,c.height);poster=c.toDataURL('image/png')}catch{}}resolve({url,type,width:el.naturalWidth,height:el.naturalHeight,poster,name:f.name,size:f.size})};el.src=url})}
 const uploadQueue=[];function renderQueue(){$('#upload-queue').innerHTML=uploadQueue.map((q,i)=>`<div class="queue-row"><span>${esc(q.file.name)}</span><b>${esc(q.status)}</b><progress max="100" value="${q.progress}"></progress>${q.error?`<small>${esc(q.error)}</small><button type="button" data-retry="${i}">重試</button>`:''}</div>`).join('')}
@@ -188,7 +298,7 @@ async function processItem(q){q.status='辨識與解碼中';q.error='';q.progres
  try{
   const {id}=await uploadRecordMedia(q.file);
   const poster=inspected.poster?await uploadRecordMedia(await fetch(inspected.poster).then(response=>response.blob())):null;
-  q.asset={id,type,name:inspected.name.slice(0,255),size:inspected.size,width:inspected.width,height:inspected.height,
+  q.asset={id,type,view:'gallery',name:inspected.name.slice(0,255),size:inspected.size,width:inspected.width,height:inspected.height,
    ...(poster?{posterId:poster.id}:{})};
  }finally{URL.revokeObjectURL(inspected.url)}q.status='完成 · '+type.toUpperCase();q.progress=100}catch(err){q.status='失敗';q.error=err.message;q.progress=0}renderQueue()}
 async function runQueue(){uploadBusy=true;$('#person-form button[type="submit"]').disabled=true;$('#admin-kind').disabled=$('#admin-person').disabled=true;let cursor=0;async function worker(){while(cursor<uploadQueue.length){const q=uploadQueue[cursor++];if(q.status==='排隊中')await processItem(q)}}await Promise.all([worker(),worker()]);stagedAssets.push(...uploadQueue.filter(q=>q.asset&&!q.applied).map(q=>{q.applied=true;return q.asset}));renderUploadPreview();$('#upload-feedback').textContent='批次處理完成：'+uploadQueue.filter(q=>q.asset).length+' 個成功；儲存成員草稿後才會保留。';uploadBusy=false;$('#person-form button[type="submit"]').disabled=false;$('#admin-kind').disabled=$('#admin-person').disabled=false}
@@ -312,6 +422,29 @@ let candle=false;try{candle=localStorage.getItem('rainfall-candle')==='1'}catch{
 const canvas=$('#rain'),ctx=canvas.getContext('2d');let drops=[],rainTime=0,frameId;function sizeRain(){canvas.width=canvas.clientWidth;canvas.height=canvas.clientHeight;drops=Array.from({length:mobile.matches?35:75},(_,i)=>({x:(i*197)%canvas.width,y:(i*137)%canvas.height,s:1+(i%4)*.3,l:10+i%18}))}sizeRain();addEventListener('resize',sizeRain);function drawRain(time){frameId=requestAnimationFrame(drawRain);if(reduced.matches||document.hidden||scrollY>canvas.height||time-rainTime<32)return;rainTime=time;ctx.clearRect(0,0,canvas.width,canvas.height);ctx.strokeStyle='#becfff24';ctx.lineWidth=.7;for(const d of drops){d.y+=d.s*6;d.x-=d.s;if(d.y>canvas.height){d.y=-30;d.x=Math.random()*canvas.width}if(d.x<0)d.x=canvas.width;ctx.beginPath();ctx.moveTo(d.x,d.y);ctx.lineTo(d.x-3,d.y+d.l);ctx.stroke()}}if(!reduced.matches)frameId=requestAnimationFrame(drawRain);
 
 // Card controls stay separate from opening a portrait.
-document.addEventListener('click',e=>{const nav=e.target.closest('[data-card-dir]');if(!nav)return;e.preventDefault();e.stopImmediatePropagation();const card=nav.closest('[data-person]'),p=getPerson(card.dataset.person),n=views(p).length;const i=((Number(card.dataset.view||0)+Number(nav.dataset.cardDir))%n+n)%n;card.dataset.view=i;card.querySelector('.card-media').innerHTML=mediaHTML(p,i);card.querySelector('.card-view-count').textContent=(i+1)+' / '+n},true);
+document.addEventListener('click',e=>{
+ const nav=e.target.closest('[data-card-dir]');
+ if(!nav)return;
+ e.preventDefault();
+ e.stopImmediatePropagation();
+ const card=nav.closest('[data-person]'),person=getPerson(card.dataset.person),gallery=views(person);
+ const i=(Number(card.dataset.view||0)+Number(nav.dataset.cardDir)+gallery.length)%gallery.length;
+ syncCardPlayback(card,false);
+ const host=card.querySelector('.card-media'),previous=host.lastElementChild;
+ const slide=document.createElement('div');
+ slide.className='card-slide';
+ slide.innerHTML=mediaHTML(person,i);
+ host.replaceChildren(previous,slide);
+ card.dataset.view=i;
+ card.querySelector('.portrait-badge').textContent=viewLabel(gallery[i]);
+ card.querySelector('.card-view-count').textContent=`${i+1} / ${gallery.length}`;
+ if(!reduced.matches){
+  previous.setAttribute('aria-hidden','true');
+  previous.animate([{opacity:1},{opacity:0}],{duration:230,easing:'ease-out'}).onfinish=()=>previous.remove();
+  slide.animate([{opacity:0},{opacity:1}],{duration:230,easing:'ease-out'});
+  card.querySelector('.frame-runner').animate([{strokeDashoffset:100},{strokeDashoffset:0}],{duration:460});
+ }else previous.remove();
+ syncCardPlayback(card,card.hasAttribute('data-card-hover'));
+},true);
 document.addEventListener('keydown',e=>{const c=e.target.closest('.person-card');if(c&&e.target===c&&(e.key==='Enter'||e.key===' ')){e.preventDefault();c.click()}});
 document.addEventListener('pointermove',e=>{if(reduced.matches||e.pointerType==='touch')return;const c=e.target.closest('.person-card');if(!c)return;const r=c.getBoundingClientRect(),x=(e.clientX-r.left)/r.width,y=(e.clientY-r.top)/r.height;c.style.setProperty('--tilt-x',((.5-y)*9)+'deg');c.style.setProperty('--tilt-y',((x-.5)*12)+'deg');c.style.setProperty('--glow-x',x*100+'%');c.style.setProperty('--glow-y',y*100+'%')});document.addEventListener('pointerout',e=>{const c=e.target.closest('.person-card');if(c&&!c.contains(e.relatedTarget)){c.style.setProperty('--tilt-x','0deg');c.style.setProperty('--tilt-y','0deg')}});

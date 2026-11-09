@@ -51,6 +51,7 @@ async function isOwner(request,env){
 
 const personRoles=['會長','副會長','理事','成員'];
 const personMedia=['jpg','png','gif','webp','mp4'];
+const personViews=['gallery','front','side','back','group','sheet'];
 const shortText=(value,max,required=false)=>typeof value==='string'&&value.length<=max&&(!required||Boolean(value.trim()));
 const onlyKeys=(value,keys)=>Object.keys(value).every(key=>keys.includes(key));
 const validId=id=>typeof id==='string'&&assetId.test(id);
@@ -78,9 +79,10 @@ function validateRecords(records){
    ids.add(person.id);
    for(const asset of person.assets){
     if(isRecord(asset)&&person.id==='m0'&&asset.demo===true&&onlyKeys(asset,['demo']))continue;
-    if(!isRecord(asset)||!onlyKeys(asset,['id','posterId','type','name','size','width','height'])||!validId(asset.id)||
+    if(!isRecord(asset)||!onlyKeys(asset,['id','posterId','type','view','name','size','width','height'])||!validId(asset.id)||
      (asset.posterId!==undefined&&!validId(asset.posterId))||!personMedia.includes(asset.type)||
-     !shortText(asset.name,255,true)||![asset.size,asset.width,asset.height].every(n=>Number.isSafeInteger(n)&&n>0))return false;
+     (asset.view!==undefined&&!personViews.includes(asset.view))||
+     (asset.view==='sheet'&&['gif','mp4'].includes(asset.type))||!shortText(asset.name,255,true)||![asset.size,asset.width,asset.height].every(n=>Number.isSafeInteger(n)&&n>0))return false;
    }
   }
  }

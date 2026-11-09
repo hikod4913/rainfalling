@@ -165,3 +165,18 @@
 @media (prefers-reduced-motion: reduce) {
   .frame-runner,.frame-corner { animation: none !important; }
 }
+
+/* Gallery navigation and ordering */
+.card-slide{position:absolute;inset:0}
+.card-slide img:not([src]){visibility:hidden}
+.gif-placeholder{position:absolute;inset:0;display:grid;place-items:center;color:var(--accent);letter-spacing:.18em}
+.card-slide:has(img[src]) .gif-placeholder{visibility:hidden}
+.person-card .card-nav:focus-visible{opacity:1;outline:2px solid var(--accent);outline-offset:2px}
+.upload-item .asset-drag{cursor:grab;align-self:flex-start;font-size:1.15rem;line-height:1}
+.upload-item.asset-drop-target{outline:2px solid var(--accent);outline-offset:-2px}
+.upload-item select{width:100%;margin:.25rem 0}
+.asset-actions{display:flex;flex-wrap:wrap;gap:.25rem}
+.asset-actions button:disabled{opacity:.45;cursor:default}
+.card-slide,.profile-media #profile-image{container-type:size}
+.triptych-panel{position:absolute;top:50%;left:50%;width:min(100cqw,calc(100cqh * var(--panel-ratio)));aspect-ratio:var(--panel-ratio);transform:translate(-50%,-50%);overflow:hidden}
+.card-media .triptych-panel .triptych-crop,.profile-media #profile-image .triptych-panel .triptych-crop{object-fit:fill;max-height:none}
